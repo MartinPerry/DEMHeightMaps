@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\TinyXML">
+      <UniqueIdentifier>{b8eb15dd-0185-4028-a972-ced94a96c0ff}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\TinyXML">
+      <UniqueIdentifier>{14c714f4-dc92-45fd-9336-89f7d3c0dbea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Utils">
+      <UniqueIdentifier>{ee9a7d0e-9772-4045-87d2-aa3da2e6c11f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Utils">
+      <UniqueIdentifier>{feb3d95b-84f1-4890-b0f6-46df1fcf9ac1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\VFS">
+      <UniqueIdentifier>{5ba3a918-53aa-4dc8-b75a-19069a8f9ea2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\VFS">
+      <UniqueIdentifier>{650be00a-aaa6-4dc6-bd4e-0d8993449f52}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="BorderRenderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DEMData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DEMTile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GPSUtils.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXML\tinystr.cpp">
+      <Filter>Source Files\TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXML\tinyxml.cpp">
+      <Filter>Source Files\TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXML\tinyxmlerror.cpp">
+      <Filter>Source Files\TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="TinyXML\tinyxmlparser.cpp">
+      <Filter>Source Files\TinyXML</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\Utils.cpp">
+      <Filter>Source Files\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\VFS.cpp">
+      <Filter>Source Files\VFS</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\VFSTree.cpp">
+      <Filter>Source Files\VFS</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\ZipWrapper.cpp">
+      <Filter>Source Files\VFS</Filter>
+    </ClCompile>
+    <ClCompile Include="MapProjections.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\lodepng.cpp">
+      <Filter>Source Files\Utils</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="BorderRenderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DEMData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DEMTile.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GPSUtils.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="TinyXML\tinystr.h">
+      <Filter>Header Files\TinyXML</Filter>
+    </ClInclude>
+    <ClInclude Include="TinyXML\tinyxml.h">
+      <Filter>Header Files\TinyXML</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\Utils.h">
+      <Filter>Header Files\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\VFS.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\win_dirent.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\ZipWrapper.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\VFSUtils.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="MapProjections.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\lodepng.h">
+      <Filter>Header Files\Utils</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
