@@ -69,22 +69,23 @@ int main(int argc, char * argv[])
 	//LoadTmp();
 	//return 0;
 
-	int w = 800;
-	int h = 400;
+	int w = 8000;
+	int h = 4000;
 
 
 	//DEMData dd("H://DEM_Voidfill//");	
 	//dd.ExportTileList("D://tiles.xml");
 
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
-	DEMData dd("E://DEM_Voidfill_debug//");
-	//DEMData dd("E://DEM_Voidfill//");
-	dd.SetMinMaxElevation(0, 2000);
+	//DEMData dd("E://DEM_Voidfill_debug//");
+	//DEMData dd("E://DEM23//");
+	DEMData dd("E://DEM_Voidfill//");
+	dd.SetMinMaxElevation(0, 5000);
+	
+	uint8_t * data = dd.BuildMap(w, h, { 31.0_deg, -27.0_deg }, /**/{ 58.0_deg, 47.0_deg}, true);
+	//unsigned char * data = dd.BuildMap(w, h, {51.15_deg, 12.007_deg} /**/ {48.0_deg, 18.9999_deg}, true);
 
-	unsigned char * data = dd.BuildMap(w, h, -27, 31, /**/ 47, 58, true);
-	//unsigned char * data = dd.BuildMap(w, h, 12.007, 51.15, /**/ 18.9999, 48.0, true);
-
-	Utils::SaveToFile(data, w * h, "D://rrr.raw");
+	Utils::SaveToFile<uint8_t>(data, w * h, "D://rrr.raw");
 	//-------------------------------------------------------------
 	//-------------------------------------------------------------
 	//-------------------------------------------------------------
@@ -94,8 +95,8 @@ int main(int argc, char * argv[])
 	//memset(data, 0, w * h);
 	BorderRenderer br("I://hranice//");
 	br.SetData(w, h, data);
-	br.DrawBorders(-27, 31, /**/ 47, 58, true);		 //Evropa
-	//br.DrawBorders(12.007, 51.15, /**/ 18.9999, 48.0, true); //CZ
+	br.DrawBorders({ 31.0_deg, -27.0_deg }, /**/{ 58.0_deg, 47.0_deg }, true);		 //Evropa
+	//br.DrawBorders({51.15_deg, 12.007_deg} /**/ {48.0_deg, 18.9999_deg}, true); //CZ
 	Utils::SaveToFile(data, w * h, "D://rrr.raw");
 	
 	

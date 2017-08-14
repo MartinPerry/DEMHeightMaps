@@ -4,7 +4,7 @@
 
 #include <unordered_map>
 
-#include "GPSUtils.h"
+#include <MapProjection.h>
 
 
 class BorderRenderer
@@ -15,11 +15,11 @@ class BorderRenderer
 
 		void SetData(int w, int h, uint8_t * data);
 		
-		void DrawBorders(double minLon, double minLat, double maxLon, double maxLat, bool keepAR);
+		void DrawBorders(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR);
 				
 
 	private:
-		std::unordered_map<std::string, std::vector<GPSPoint> > borders;
+		std::unordered_map<std::string, std::vector<IProjectionInfo::Coordinate> > borders;
 
 		int w;
 		int h;

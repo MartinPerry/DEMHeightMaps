@@ -10,7 +10,7 @@
 DEMTileData::DEMTileData(const DEMTileInfo & info)
 {
 	this->info = info;
-	this->data = NULL;
+	this->data = nullptr;
 }
 
 DEMTileData::~DEMTileData()
@@ -20,17 +20,17 @@ DEMTileData::~DEMTileData()
 
 //Data are overlaping from neighboring tiles at the borders
 //https://www.orekit.org/forge/projects/rugged/wiki/DirectLocationWithDEM
-short DEMTileData::GetValue(double lon, double lat)
+short DEMTileData::GetValue(const IProjectionInfo::Coordinate & c)
 {		
-	double difLon = lon - this->info.botLeftLon;
-	double difLat = lat - this->info.botLeftLat;
+	double difLon = c.lon.rad() - this->info.botLeftLon.rad();
+	double difLat = c.lat.rad() - this->info.botLeftLat.rad();
 
-	if ((difLon < 0) || (difLon > this->info.stepLon))
+	if ((difLon < 0) || (difLon > this->info.stepLon.rad()))
 	{
 		//outside
 		return 0;// std::numeric_limits<T>::max();
 	}
-	if ((difLat < 0) || (difLat > this->info.stepLat))
+	if ((difLat < 0) || (difLat > this->info.stepLat.rad()))
 	{
 		//outside
 		return 0;// std::numeric_limits<T>::max();
@@ -39,8 +39,8 @@ short DEMTileData::GetValue(double lon, double lat)
 	//lazy loading data - load data, when we really need them, not before
 	this->LoadTileData();
 
-	double x = difLon / (this->info.stepLon / this->info.width);
-	double y = difLat / (this->info.stepLat / this->info.height);
+	double x = difLon / (this->info.stepLon.rad() / this->info.width);
+	double y = difLat / (this->info.stepLat.rad() / this->info.height);
 
 	//tiles are "horizontally" flipped... [0,0] is at top left, not bottom left, where is minimal lon/lat
 	int index = static_cast<int>(x) + (this->info.height - 1 - static_cast<int>(y)) * this->info.width;

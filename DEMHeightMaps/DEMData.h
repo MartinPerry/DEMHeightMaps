@@ -3,14 +3,14 @@
 
 #include <unordered_map>
 #include <MapProjection.h>
+#include <GeoCoordinate.h>
 
-#include "./GPSUtils.h"
 
 #include "./DEMTile.h"
 
 
 
-typedef std::unordered_map<DEMTileInfo, DEMTileData *, hashFunc, equalsFunc> DemTileMap;
+typedef std::unordered_map<DEMTileInfo, DEMTileData, hashFunc, equalsFunc> DemTileMap;
 
 
 class DEMData 
@@ -19,15 +19,15 @@ class DEMData
 
 		typedef struct DEMArea
 		{
-			DEMArea(const GPSPoint & min, const GPSPoint & max) 
+			DEMArea(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max)
 				: min(min), max(max)
 			{
 			}
 
-			GPSPoint min;
-			GPSPoint max;
+			IProjectionInfo::Coordinate min;
+			IProjectionInfo::Coordinate max;
 					
-			std::vector<DEMTileData *> tileData;
+			std::list<DEMTileData *> tileData;
 
 		} DEMArea;
 
@@ -38,11 +38,11 @@ class DEMData
 		void SetMinMaxElevation(double minElev, double maxElev);
 
 		void ExportTileList(const std::string & fileName);
-		DEMData::DEMArea GetTilesInArea(double topLeftLat, double topLeftLon, double botRightLat, double botRightLon);
+		DEMData::DEMArea GetTilesInArea(GeoCoordinate topLeftLat, GeoCoordinate topLeftLon, GeoCoordinate botRightLat, GeoCoordinate botRightLon);
 
-		uint8_t * BuildMap(int w, int h, double minLon, double minLat, double maxLon, double maxLat, bool keepAR);
+		uint8_t * BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR);
 
-		short GetValue(DEMArea & area, const IProjectionInfo::Coordinate & c);
+		short GetValue(const DEMArea & area, const IProjectionInfo::Coordinate & c);
 
 	private:
 		const int TILE_SIZE_3 = 1201;
@@ -59,7 +59,7 @@ class DEMData
 		void LoadTileDir(const std::string & dir);
 		void ImportTileList(const std::string & fileName);
 
-		bool IsInside(const GPSPoint & p, DEMArea & area);
+		bool IsInside(const IProjectionInfo::Coordinate & p, DEMArea & area);
 		
 };
 

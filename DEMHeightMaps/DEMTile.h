@@ -2,8 +2,10 @@
 #define DEM_TILE_H
 
 #include <unordered_map>
+#include <GeoCoordinate.h>
+#include <MapProjection.h>
 
-#include "./GPSUtils.h"
+
 
 //=============================================================================================
 //=============================================================================================
@@ -11,11 +13,11 @@
 
 typedef struct DEMTileInfo 
 {
-	double botLeftLat; //sirka (+ => N, - => S)
-	double botLeftLon; //delka (+ => E, - => W)
+	GeoCoordinate botLeftLat; //sirka (+ => N, - => S)
+	GeoCoordinate botLeftLon; //delka (+ => E, - => W)
 
-	double stepLat;
-	double stepLon;
+	GeoCoordinate stepLat;
+	GeoCoordinate stepLon;
 
 	int width;
 	int height;
@@ -29,21 +31,21 @@ typedef struct DEMTileInfo
 	* |		|
 	* 0 --- 1
 	*/
-	GPSPoint GetCorner(int i) const
+	IProjectionInfo::Coordinate GetCorner(int i) const
 	{
-		if (i == 0) return GPSPoint(botLeftLon, botLeftLat);
-		if (i == 1) return GPSPoint(botLeftLon + stepLon, botLeftLat);
-		if (i == 2) return GPSPoint(botLeftLon, botLeftLat + stepLat);
-		return GPSPoint(botLeftLon + stepLon, botLeftLat + stepLat);
+		if (i == 0) return { botLeftLon, botLeftLat};
+		if (i == 1) return { GeoCoordinate::rad(botLeftLon.rad() + stepLon.rad()), botLeftLat };
+		if (i == 2) return { botLeftLon, GeoCoordinate::rad(botLeftLat.rad() + stepLat.rad()) };
+		return { GeoCoordinate::rad(botLeftLon.rad() + stepLon.rad()), GeoCoordinate::rad(botLeftLat.rad() + stepLat.rad()) };
 	};
 
-	bool IsPointInside(double lon, double lat) const	
+	bool IsPointInside(const GeoCoordinate & lon, const GeoCoordinate & lat) const
 	{
-		if (lon < botLeftLon) return false;
-		if (lat < botLeftLat) return false;
+		if (lon.rad() < botLeftLon.rad()) return false;
+		if (lat.rad() < botLeftLat.rad()) return false;
 
-		if (lon > botLeftLon + stepLon) return false;
-		if (lat > botLeftLat + stepLat) return false;
+		if (lon.rad() > botLeftLon.rad() + stepLon.rad()) return false;
+		if (lat.rad() > botLeftLat.rad() + stepLat.rad()) return false;
 		
 		return true;
 	};
@@ -54,8 +56,8 @@ struct hashFunc
 {
 	size_t operator()(const DEMTileInfo &k) const 
 	{
-		size_t h1 = std::hash<double>()(k.botLeftLon);
-		size_t h2 = std::hash<double>()(k.botLeftLat);
+		size_t h1 = std::hash<double>()(k.botLeftLon.rad());
+		size_t h2 = std::hash<double>()(k.botLeftLat.rad());
 		return (h1 ^ (h2 << 1));
 	}
 };
@@ -64,7 +66,7 @@ struct equalsFunc
 {
 	bool operator()(const DEMTileInfo& lhs, const DEMTileInfo& rhs) const 
 	{
-		return (lhs.botLeftLon == rhs.botLeftLon) && (lhs.botLeftLat == rhs.botLeftLat);
+		return (lhs.botLeftLon.rad() == rhs.botLeftLon.rad()) && (lhs.botLeftLat.rad() == rhs.botLeftLat.rad());
 	}
 };
 
@@ -75,12 +77,13 @@ struct equalsFunc
 class DEMTileData 
 {
 	public:
-				
+			
+		DEMTileData() = default;
 		DEMTileData(const DEMTileInfo & info);
 		~DEMTileData();
 
 		
-		short GetValue(double lon, double lat);
+		short GetValue(const IProjectionInfo::Coordinate & c);
 
 		friend class DEMData;
 

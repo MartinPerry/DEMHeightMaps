@@ -31,6 +31,12 @@
     <Filter Include="Source Files\VFS">
       <UniqueIdentifier>{650be00a-aaa6-4dc6-bd4e-0d8993449f52}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\MapProjections">
+      <UniqueIdentifier>{a5f8d7eb-297a-4228-bd13-29c3ff422d85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\MapProjections">
+      <UniqueIdentifier>{78289977-74f9-4fab-a7bf-67f28f31a182}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -43,9 +49,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DEMTile.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GPSUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="TinyXML\tinystr.cpp">
@@ -72,6 +75,18 @@
     <ClCompile Include="VFS\ZipWrapper.cpp">
       <Filter>Source Files\VFS</Filter>
     </ClCompile>
+    <ClCompile Include="..\MapProjections\MapProjections\lodepng.cpp">
+      <Filter>Source Files\MapProjections</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MapProjections\MapProjections\MapProjection.cpp">
+      <Filter>Source Files\MapProjections</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp">
+      <Filter>Source Files\MapProjections</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp">
+      <Filter>Source Files\MapProjections</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BorderRenderer.h">
@@ -81,9 +96,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DEMTile.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GPSUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="TinyXML\tinystr.h">
@@ -106,6 +118,21 @@
     </ClInclude>
     <ClInclude Include="VFS\VFSUtils.h">
       <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\lodepng.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjection.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\Projections.h">
+      <Filter>Header Files\MapProjections</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

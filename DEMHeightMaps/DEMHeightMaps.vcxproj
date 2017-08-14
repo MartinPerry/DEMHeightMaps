@@ -96,6 +96,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -127,6 +128,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -146,10 +148,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\MapProjections\MapProjections\lodepng.cpp" />
+    <ClCompile Include="..\MapProjections\MapProjections\MapProjection.cpp" />
+    <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp" />
+    <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp" />
     <ClCompile Include="BorderRenderer.cpp" />
     <ClCompile Include="DEMData.cpp" />
     <ClCompile Include="DEMTile.cpp" />
-    <ClCompile Include="GPSUtils.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="TinyXML\tinystr.cpp" />
     <ClCompile Include="TinyXML\tinyxml.cpp" />
@@ -161,10 +166,14 @@
     <ClCompile Include="VFS\ZipWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\lodepng.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjection.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\Projections.h" />
     <ClInclude Include="BorderRenderer.h" />
     <ClInclude Include="DEMData.h" />
     <ClInclude Include="DEMTile.h" />
-    <ClInclude Include="GPSUtils.h" />
     <ClInclude Include="TinyXML\tinystr.h" />
     <ClInclude Include="TinyXML\tinyxml.h" />
     <ClInclude Include="Utils\Utils.h" />

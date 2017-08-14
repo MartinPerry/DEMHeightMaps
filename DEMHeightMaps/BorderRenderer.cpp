@@ -100,7 +100,7 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 	std::vector<std::string> lines = split(content, '\n');
 
 	std::string keyName;
-	std::vector<GPSPoint> * border = NULL;
+	std::vector<IProjectionInfo::Coordinate> * border = NULL;
 
 	int tmp = 0;
 	int USE_EVERY_NTH_POINT = 1;
@@ -138,9 +138,9 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 
 				border = &this->borders[key];
 				
-				GPSPoint point;
-				point.x = atof(line[0].c_str());
-				point.y = atof(line[1].c_str());
+				IProjectionInfo::Coordinate point;
+				point.lon = GeoCoordinate::deg(atof(line[0].c_str()));
+				point.lat = GeoCoordinate::deg(atof(line[1].c_str()));
 
 				border->push_back(point);
 			}
@@ -155,48 +155,36 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 
 
 
-void BorderRenderer::DrawBorders(double minLon, double minLat, double maxLon, double maxLat, bool keepAR)
+void BorderRenderer::DrawBorders(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
 {	
 
-	
-	IProjectionInfo::Coordinate bbMin, bbMax;
-	bbMin.lat = GeoCoordinate::deg(minLat);
-	bbMin.lon = GeoCoordinate::deg(minLat);
-	bbMax.lat = GeoCoordinate::deg(maxLat);
-	bbMax.lon = GeoCoordinate::deg(maxLon);
 
 
 	IProjectionInfo * mercator = new Mercator();
-	mercator->SetFrame(bbMin, bbMax, w, h, keepAR);
+	mercator->SetFrame(min, max, w, h, keepAR);
 
 
 	ProjectionRenderer render(mercator);
 	render.SetRawDataTarget(realHeightMap);
-
-	std::unordered_map<std::string, std::vector<GPSPoint> >::iterator it;
-	for (it = this->borders.begin(); it != this->borders.end(); ++it)
+	
+	for (auto it : this->borders)
 	{
 
-		std::vector<GPSPoint> & b = it->second;
+		const auto & b = it.second;
 
 		for (size_t i = 0; i < b.size(); i++)
 		{
-			GPSPoint p = b[i % b.size()];
-			GPSPoint p1 = b[(i + 1) % b.size()];
+			auto start = b[i % b.size()];
+			auto end = b[(i + 1) % b.size()];
 
-			if (p.x == -88888)
+			if (start.lat.rad() > 4)
+			{
+				continue;
+			}			
+			if (start.lat.rad() < -4)
 			{
 				continue;
 			}
-			
-			IProjectionInfo::Coordinate start;
-			start.lat = GeoCoordinate::deg(p.lat);
-			start.lon = GeoCoordinate::deg(p.lon);
-
-			IProjectionInfo::Coordinate end;
-			end.lat = GeoCoordinate::deg(p1.lat);
-			end.lon = GeoCoordinate::deg(p1.lon);
-
 
 			render.DrawLine(start, end);						
 		}
