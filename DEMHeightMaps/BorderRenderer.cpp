@@ -1,10 +1,14 @@
 #include "BorderRenderer.h"
 
+#include <MapProjection.h>
+#include <GeoCoordinate.h>
+#include <Projections.h>
+#include <ProjectionRenderer.h>
+
 #include "./VFS/win_dirent.h"
 #include "./VFS/VFSUtils.h"
 #include "./Utils/Utils.h"
 
-#include "./MapProjections.h"
 
 BorderRenderer::BorderRenderer(const std::string & borderDir)
 {
@@ -152,10 +156,22 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 
 
 void BorderRenderer::DrawBorders(double minLon, double minLat, double maxLon, double maxLat, bool keepAR)
-{
+{	
+
 	
-	MapProjections mh = MapProjections(MapProjections::MERCATOR, w, h, minLon, minLat, maxLon, maxLat);
-	mh.SetKeepAR(keepAR);
+	IProjectionInfo::Coordinate bbMin, bbMax;
+	bbMin.lat = GeoCoordinate::deg(minLat);
+	bbMin.lon = GeoCoordinate::deg(minLat);
+	bbMax.lat = GeoCoordinate::deg(maxLat);
+	bbMax.lon = GeoCoordinate::deg(maxLon);
+
+
+	IProjectionInfo * mercator = new Mercator();
+	mercator->SetFrame(bbMin, bbMax, w, h, keepAR);
+
+
+	ProjectionRenderer render(mercator);
+	render.SetRawDataTarget(realHeightMap);
 
 	std::unordered_map<std::string, std::vector<GPSPoint> >::iterator it;
 	for (it = this->borders.begin(); it != this->borders.end(); ++it)
@@ -172,15 +188,17 @@ void BorderRenderer::DrawBorders(double minLon, double minLat, double maxLon, do
 			{
 				continue;
 			}
-
-			double pixelX, pixelY;
-			mh.ConvertCoordinates(p.x, p.y, &pixelX, &pixelY);
 			
-			double pixelX1, pixelY1;
-			mh.ConvertCoordinates(p1.x, p1.y, &pixelX1, &pixelY1);
+			IProjectionInfo::Coordinate start;
+			start.lat = GeoCoordinate::deg(p.lat);
+			start.lon = GeoCoordinate::deg(p.lon);
+
+			IProjectionInfo::Coordinate end;
+			end.lat = GeoCoordinate::deg(p1.lat);
+			end.lon = GeoCoordinate::deg(p1.lon);
 
 
-			this->DrawLine(pixelX, pixelY, pixelX1, pixelY1, w, h);
+			render.DrawLine(start, end);						
 		}
 
 	}	

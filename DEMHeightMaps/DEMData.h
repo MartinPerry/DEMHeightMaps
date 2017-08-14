@@ -2,6 +2,8 @@
 #define DEM_DATA_H
 
 #include <unordered_map>
+#include <MapProjection.h>
+
 #include "./GPSUtils.h"
 
 #include "./DEMTile.h"
@@ -40,7 +42,7 @@ class DEMData
 
 		uint8_t * BuildMap(int w, int h, double minLon, double minLat, double maxLon, double maxLat, bool keepAR);
 
-		short GetValue(DEMArea & area, double lon, double lat);
+		short GetValue(DEMArea & area, const IProjectionInfo::Coordinate & c);
 
 	private:
 		const int TILE_SIZE_3 = 1201;

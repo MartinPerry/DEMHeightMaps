@@ -1,5 +1,5 @@
 
-#include "./Utils/lodepng.h"
+#include <lodepng.h>
 
 #include "./VFS/VFS.h"
 #include "./Utils/Utils.h"
@@ -78,9 +78,11 @@ int main(int argc, char * argv[])
 
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
 	DEMData dd("E://DEM_Voidfill_debug//");
+	//DEMData dd("E://DEM_Voidfill//");
 	dd.SetMinMaxElevation(0, 2000);
 
-	unsigned char * data = dd.BuildMap(w, h, 12.007, 51.15, /**/ 18.9999, 48.0, true);
+	unsigned char * data = dd.BuildMap(w, h, -27, 31, /**/ 47, 58, true);
+	//unsigned char * data = dd.BuildMap(w, h, 12.007, 51.15, /**/ 18.9999, 48.0, true);
 
 	Utils::SaveToFile(data, w * h, "D://rrr.raw");
 	//-------------------------------------------------------------
@@ -92,8 +94,8 @@ int main(int argc, char * argv[])
 	//memset(data, 0, w * h);
 	BorderRenderer br("I://hranice//");
 	br.SetData(w, h, data);
-	//br.DrawBorders(-27, 31, /**/ 47, 58);		 //Evropa
-	br.DrawBorders(12.007, 51.15, /**/ 18.9999, 48.0, true); //CZ
+	br.DrawBorders(-27, 31, /**/ 47, 58, true);		 //Evropa
+	//br.DrawBorders(12.007, 51.15, /**/ 18.9999, 48.0, true); //CZ
 	Utils::SaveToFile(data, w * h, "D://rrr.raw");
 	
 	

@@ -1,10 +1,13 @@
 #include "./DEMData.h"
 
+#include <MapProjection.h>
+#include <GeoCoordinate.h>
+#include <Projections.h>
+
 #include "./VFS/VFS.h"
 #include "./Utils/Utils.h"
 #include "./TinyXML/tinyxml.h"
 
-#include "./MapProjections.h"
 
 //=======================================================================================
 // ctors & dtor
@@ -181,20 +184,26 @@ uint8_t * DEMData::BuildMap(int w, int h, double minLon, double minLat, double m
 	uint8_t * heightMap = new uint8_t[w * h];
 	memset(heightMap, 0, w * h * sizeof(uint8_t));
 
-	MapProjections mp = MapProjections(MapProjections::MERCATOR, w, h, minLon, minLat, maxLon, maxLat);
-	mp.SetKeepAR(keepAR);
+	IProjectionInfo::Coordinate bbMin, bbMax;
+	bbMin.lat = GeoCoordinate::deg(minLat);
+	bbMin.lon = GeoCoordinate::deg(minLat);
+	bbMax.lat = GeoCoordinate::deg(maxLat);
+	bbMax.lon = GeoCoordinate::deg(maxLon);
 
+
+	IProjectionInfo * mercator = new Mercator();
+	mercator->SetFrame(bbMin, bbMax, w, h, keepAR);
+	
 	DEMData::DEMArea area = this->GetTilesInArea(minLon, minLat, maxLon, maxLat);
 
 	for (int y = 0; y < h; y++)
 	{
 		for (int x = 0; x < w; x++)
 		{
-			double lon = 0;
-			double lat = 0;
-			mp.ConvertCoordinatesInverse(x, y, &lon, &lat);
 
-			short value = this->GetValue(area, lon, lat);
+			IProjectionInfo::Coordinate c = mercator->ProjectInverse({ x, y });
+			
+			short value = this->GetValue(area, c);
 			uint8_t v = static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));
 
 			heightMap[x + y * w] = v;
@@ -209,17 +218,14 @@ DEMData::DEMArea DEMData::GetTilesInArea(double minLon, double minLat, double ma
 {
 	DEMArea da(GPSPoint(minLon, minLat), GPSPoint(maxLon, maxLat));
 	
-	for (size_t i = 0; i < this->tiles.size(); i++)
+	for (const DEMTileInfo & tile : this->tiles)
 	{
-		int isInside = true;
-
-		const DEMTileInfo * tile = &this->tiles[i];
-
+		int isInside = false;		
 		for (int j = 0; j < 4; j++)
 		{
-			if (this->IsInside(tile->GetCorner(j), da))
+			if (this->IsInside(tile.GetCorner(j), da))
 			{
-				isInside = false;
+				isInside = true;
 				break;
 			}
 		}
@@ -229,16 +235,16 @@ DEMData::DEMArea DEMData::GetTilesInArea(double minLon, double minLat, double ma
 			continue;
 		}
 
-		if (this->cachedTiledData.find(*tile) != this->cachedTiledData.end())
+		if (this->cachedTiledData.find(tile) != this->cachedTiledData.end())
 		{
-			da.tileData.push_back(this->cachedTiledData[*tile]);
+			da.tileData.push_back(this->cachedTiledData[tile]);
 		}
 		else
 		{
-			DEMTileData * td = new DEMTileData(*tile);
+			DEMTileData * td = new DEMTileData(tile);
 
 			da.tileData.push_back(td);
-			this->cachedTiledData[*tile] = td;
+			this->cachedTiledData[tile] = td;
 		}
 	}
 
@@ -259,8 +265,11 @@ bool DEMData::IsInside(const GPSPoint & p, DEMArea & area)
 }
 
 
-short DEMData::GetValue(DEMArea & da, double lon, double lat)
-{
+short DEMData::GetValue(DEMArea & da, const IProjectionInfo::Coordinate & c)
+{	
+	double lat = c.lat.deg();
+	double lon = c.lon.deg();
+
 	for (size_t i = 0; i < da.tileData.size(); i++)
 	{
 		const DEMTileInfo & ti = da.tileData[i]->info;

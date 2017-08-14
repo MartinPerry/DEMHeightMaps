@@ -72,12 +72,6 @@
     <ClCompile Include="VFS\ZipWrapper.cpp">
       <Filter>Source Files\VFS</Filter>
     </ClCompile>
-    <ClCompile Include="MapProjections.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\lodepng.cpp">
-      <Filter>Source Files\Utils</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BorderRenderer.h">
@@ -112,12 +106,6 @@
     </ClInclude>
     <ClInclude Include="VFS\VFSUtils.h">
       <Filter>Header Files\VFS</Filter>
-    </ClInclude>
-    <ClInclude Include="MapProjections.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\lodepng.h">
-      <Filter>Header Files\Utils</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
