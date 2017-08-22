@@ -1,7 +1,11 @@
 #ifndef DEM_TILE_H
 #define DEM_TILE_H
 
+
+#include <atomic>
 #include <unordered_map>
+#include <mutex>
+
 #include <GeoCoordinate.h>
 #include <MapProjection.h>
 
@@ -11,20 +15,16 @@
 //=============================================================================================
 //=============================================================================================
 
-typedef struct DEMTileInfo 
+typedef struct TileInfo 
 {
-	GeoCoordinate botLeftLat; //sirka (+ => N, - => S)
-	GeoCoordinate botLeftLon; //delka (+ => E, - => W)
+	GeoCoordinate minLat; //sirka (+ => N, - => S)
+	GeoCoordinate minLon; //delka (+ => E, - => W)
 
 	GeoCoordinate stepLat;
 	GeoCoordinate stepLon;
 
 	int width;
 	int height;
-
-	int bytesPerValue;
-
-	std::string fileName;
 
 	/**
 	* 2 --- 3
@@ -33,40 +33,40 @@ typedef struct DEMTileInfo
 	*/
 	IProjectionInfo::Coordinate GetCorner(int i) const
 	{
-		if (i == 0) return { botLeftLon, botLeftLat};
-		if (i == 1) return { GeoCoordinate::rad(botLeftLon.rad() + stepLon.rad()), botLeftLat };
-		if (i == 2) return { botLeftLon, GeoCoordinate::rad(botLeftLat.rad() + stepLat.rad()) };
-		return { GeoCoordinate::rad(botLeftLon.rad() + stepLon.rad()), GeoCoordinate::rad(botLeftLat.rad() + stepLat.rad()) };
+		if (i == 0) return { minLat, minLon };
+		if (i == 1) return { minLat,  GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
+		if (i == 2) return { GeoCoordinate::rad(minLat.rad() + stepLat.rad()), minLon };
+		return { GeoCoordinate::rad(minLat.rad() + stepLat.rad()), GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
 	};
 
-	bool IsPointInside(const GeoCoordinate & lon, const GeoCoordinate & lat) const
+	bool IsPointInside(const IProjectionInfo::Coordinate & p) const
 	{
-		if (lon.rad() < botLeftLon.rad()) return false;
-		if (lat.rad() < botLeftLat.rad()) return false;
+		if (p.lon.rad() < minLon.rad()) return false;
+		if (p.lat.rad() < minLat.rad()) return false;
 
-		if (lon.rad() > botLeftLon.rad() + stepLon.rad()) return false;
-		if (lat.rad() > botLeftLat.rad() + stepLat.rad()) return false;
-		
+		if (p.lon.rad() > minLon.rad() + stepLon.rad()) return false;
+		if (p.lat.rad() > minLat.rad() + stepLat.rad()) return false;
+
 		return true;
 	};
 
-} DEMTileInfo;
+} TileInfo;
 
 struct hashFunc 
 {
-	size_t operator()(const DEMTileInfo &k) const 
+	size_t operator()(const TileInfo &k) const 
 	{
-		size_t h1 = std::hash<double>()(k.botLeftLon.rad());
-		size_t h2 = std::hash<double>()(k.botLeftLat.rad());
+		size_t h1 = std::hash<double>()(k.minLon.rad());
+		size_t h2 = std::hash<double>()(k.minLat.rad());
 		return (h1 ^ (h2 << 1));
 	}
 };
 
 struct equalsFunc 
 {
-	bool operator()(const DEMTileInfo& lhs, const DEMTileInfo& rhs) const 
+	bool operator()(const TileInfo& lhs, const TileInfo& rhs) const 
 	{
-		return (lhs.botLeftLon.rad() == rhs.botLeftLon.rad()) && (lhs.botLeftLat.rad() == rhs.botLeftLat.rad());
+		return (lhs.minLon.rad() == rhs.minLon.rad()) && (lhs.minLat.rad() == rhs.minLat.rad());
 	}
 };
 
@@ -74,27 +74,43 @@ struct equalsFunc
 //=============================================================================================
 //=============================================================================================
 
+typedef struct DEMTileInfo : TileInfo
+{
+	int bytesPerValue;
+
+	std::string fileName;
+
+} DEMTileInfo;
+
+
 class DEMTileData 
 {
 	public:
-			
-		DEMTileData() = default;
-		DEMTileData(const DEMTileInfo & info);
+					
+		DEMTileData() = default;		
+
+		DEMTileData(DEMTileData const&) = delete;
+		DEMTileData& operator=(DEMTileData const&) = delete;		
 		~DEMTileData();
 
-		
+
+		void ReleaseData();
+		void LoadTileData();
+
+		void SetTileInfo(const DEMTileInfo & info);
 		short GetValue(const IProjectionInfo::Coordinate & c);
 
 		friend class DEMData;
 
 	private:
 		
-
+		
 
 		DEMTileInfo info;
 		short * data;
+		int dataSize;
 
-		void LoadTileData();
+		
 };
 
 #endif

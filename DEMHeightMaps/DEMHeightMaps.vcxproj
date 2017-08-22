@@ -72,14 +72,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(IncludePath)</IncludePath>
+    <IncludePath>C:\Program Files %28x86%29\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
     <SourcePath>$(SourcePath)</SourcePath>
+    <LibraryPath>C:\Program Files %28x86%29\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <IncludePath>C:\Program Files %28x86%29\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files %28x86%29\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <LibraryPath>C:\Program Files %28x86%29\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files %28x86%29\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -106,9 +111,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
+      <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -145,6 +153,7 @@
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -153,6 +162,22 @@
     <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp" />
     <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp" />
     <ClCompile Include="BorderRenderer.cpp" />
+    <ClCompile Include="DB\Database\DatabaseSamples.cpp" />
+    <ClCompile Include="DB\Database\IDatabaseWrapper.cpp" />
+    <ClCompile Include="DB\Database\PostGis.cpp" />
+    <ClCompile Include="DB\Database\PostGisRaster.cpp" />
+    <ClCompile Include="DB\Database\PostgreSQLWrapper.cpp" />
+    <ClCompile Include="DB\Database\SQLFunction.cpp" />
+    <ClCompile Include="DB\Database\SQLInsert.cpp" />
+    <ClCompile Include="DB\Database\SQLPreparedStatement.cpp" />
+    <ClCompile Include="DB\Database\SQLSelect.cpp" />
+    <ClCompile Include="DB\Database\SQLUtils.cpp" />
+    <ClCompile Include="DB\Strings\MurmurHash3.cpp" />
+    <ClCompile Include="DB\Strings\MyConstString.cpp" />
+    <ClCompile Include="DB\Strings\MyStringAnsi.cpp" />
+    <ClCompile Include="DB\Strings\MyStringUtils.cpp" />
+    <ClCompile Include="DB\Strings\MyStringWide.cpp" />
+    <ClCompile Include="DB\Utils\Logger.cpp" />
     <ClCompile Include="DEMData.cpp" />
     <ClCompile Include="DEMTile.cpp" />
     <ClCompile Include="main.cpp" />
@@ -172,6 +197,25 @@
     <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h" />
     <ClInclude Include="..\MapProjections\MapProjections\Projections.h" />
     <ClInclude Include="BorderRenderer.h" />
+    <ClInclude Include="DB\Database\IDatabaseWrapper.h" />
+    <ClInclude Include="DB\Database\PostGis.h" />
+    <ClInclude Include="DB\Database\PostGisRaster.h" />
+    <ClInclude Include="DB\Database\PostgreSQLWrapper.h" />
+    <ClInclude Include="DB\Database\SQLFunction.h" />
+    <ClInclude Include="DB\Database\SQLInsert.h" />
+    <ClInclude Include="DB\Database\SQLPreparedStatement.h" />
+    <ClInclude Include="DB\Database\SQLSelect.h" />
+    <ClInclude Include="DB\Database\SQLUtils.h" />
+    <ClInclude Include="DB\Strings\ID.h" />
+    <ClInclude Include="DB\Strings\md5.h" />
+    <ClInclude Include="DB\Strings\MurmurHash3.h" />
+    <ClInclude Include="DB\Strings\MyConstString.h" />
+    <ClInclude Include="DB\Strings\MyString.h" />
+    <ClInclude Include="DB\Strings\MyStringAnsi.h" />
+    <ClInclude Include="DB\Strings\MyStringMacros.h" />
+    <ClInclude Include="DB\Strings\MyStringUtils.h" />
+    <ClInclude Include="DB\Strings\MyStringWide.h" />
+    <ClInclude Include="DB\Utils\Logger.h" />
     <ClInclude Include="DEMData.h" />
     <ClInclude Include="DEMTile.h" />
     <ClInclude Include="TinyXML\tinystr.h" />
@@ -181,6 +225,10 @@
     <ClInclude Include="VFS\VFSUtils.h" />
     <ClInclude Include="VFS\win_dirent.h" />
     <ClInclude Include="VFS\ZipWrapper.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DB\Strings\ComparisonOperators.inl" />
+    <None Include="DB\Strings\MurmurHash3_constexpr.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

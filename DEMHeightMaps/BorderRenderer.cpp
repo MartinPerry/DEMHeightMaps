@@ -10,8 +10,9 @@
 #include "./Utils/Utils.h"
 
 
-BorderRenderer::BorderRenderer(const std::string & borderDir)
+BorderRenderer::BorderRenderer(const std::string & borderDir, std::shared_ptr<IProjectionInfo> projection)
 {
+	this->projection = projection;
 	this->LoadBorderDirectory(borderDir);
 	this->realHeightMap = NULL;
 }
@@ -158,13 +159,11 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 void BorderRenderer::DrawBorders(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
 {	
 
+	
+	projection->SetFrame(min, max, w, h, keepAR);
 
 
-	IProjectionInfo * mercator = new Mercator();
-	mercator->SetFrame(min, max, w, h, keepAR);
-
-
-	ProjectionRenderer render(mercator);
+	ProjectionRenderer render(projection.get());
 	render.SetRawDataTarget(realHeightMap);
 	
 	for (auto it : this->borders)
@@ -190,63 +189,5 @@ void BorderRenderer::DrawBorders(const IProjectionInfo::Coordinate & min, const 
 		}
 
 	}	
-}
-
-void BorderRenderer::DrawLine(int startX, int startY, int endX, int endY, int width, int height)
-{
-	//TO DO.. kdyz jsou start body mimo okno
-	//oriznout na okno
-	//napr. pres Cohen-Sutherlanda
-
-	if ((startX >= static_cast<int>(width))
-		|| (startY >= static_cast<int>(height)))
-	{
-		return;
-	}
-
-	if ((endX >= static_cast<int>(width))
-		|| (endY >= static_cast<int>(height)))
-	{
-		return;
-	}
-
-	if ((startX < 0)
-		|| (startY < 0))
-	{
-		return;
-	}
-
-	if ((endX < 0)
-		|| (endY < 0))
-	{
-		return;
-	}
-
-	int dx = abs(static_cast<long>(endX - startX));
-	int dy = abs(static_cast<long>(endY - startY));
-	int sx, sy, e2;
-
-
-	(startX < endX) ? sx = 1 : sx = -1;
-	(startY < endY) ? sy = 1 : sy = -1;
-	int err = dx - dy;
-
-	while (1)
-	{
-		realHeightMap[startX + startY * width] = 255;
-		if ((startX == endX) && (startY == endY)) break;
-		e2 = 2 * err;
-		if (e2 > -dy)
-		{
-			err = err - dy;
-			startX = startX + sx;
-		}
-		if (e2 < dx)
-		{
-			err = err + dx;
-			startY = startY + sy;
-		}
-	}
-
 }
 

@@ -1,7 +1,7 @@
 #ifndef BORDER_RENDERER_H
 #define BORDER_RENDERER_H
 
-
+#include <memory>
 #include <unordered_map>
 
 #include <MapProjection.h>
@@ -10,7 +10,7 @@
 class BorderRenderer
 {
 	public:
-		BorderRenderer(const std::string & borderDir);
+		BorderRenderer(const std::string & borderDir, std::shared_ptr<IProjectionInfo> projection);
 		~BorderRenderer();
 
 		void SetData(int w, int h, uint8_t * data);
@@ -19,6 +19,7 @@ class BorderRenderer
 				
 
 	private:
+		std::shared_ptr<IProjectionInfo> projection;
 		std::unordered_map<std::string, std::vector<IProjectionInfo::Coordinate> > borders;
 
 		int w;
@@ -28,8 +29,7 @@ class BorderRenderer
 
 		void LoadBorderDirectory(const std::string & path);
 		void ProcessBorderCSV(const std::string & borderFileName);
-		void DrawLine(int startX, int startY, int endX, int endY, int width, int height);
-
+		
 };
 
 

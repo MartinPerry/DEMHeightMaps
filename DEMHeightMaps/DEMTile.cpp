@@ -7,30 +7,39 @@
 #include "./Utils/Utils.h"
 
 
-DEMTileData::DEMTileData(const DEMTileInfo & info)
+DEMTileData::~DEMTileData()
+{
+	this->ReleaseData();
+}
+
+void DEMTileData::ReleaseData()
+{
+
+	delete[](this->data);
+	this->data = nullptr;
+	this->dataSize = 0;
+}
+
+void DEMTileData::SetTileInfo(const DEMTileInfo & info)
 {
 	this->info = info;
 	this->data = nullptr;
 }
 
-DEMTileData::~DEMTileData()
-{
-	delete[] (this->data);
-}
 
 //Data are overlaping from neighboring tiles at the borders
 //https://www.orekit.org/forge/projects/rugged/wiki/DirectLocationWithDEM
 short DEMTileData::GetValue(const IProjectionInfo::Coordinate & c)
 {		
-	double difLon = c.lon.rad() - this->info.botLeftLon.rad();
-	double difLat = c.lat.rad() - this->info.botLeftLat.rad();
+	double difLon = c.lon.rad() - this->info.minLon.rad();
+	double difLat = c.lat.rad() - this->info.minLat.rad();
 
-	if ((difLon < 0) || (difLon > this->info.stepLon.rad()))
+	if ((difLon < 0) || (difLon >= this->info.stepLon.rad()))
 	{
 		//outside
 		return 0;// std::numeric_limits<T>::max();
 	}
-	if ((difLat < 0) || (difLat > this->info.stepLat.rad()))
+	if ((difLat < 0) || (difLat >= this->info.stepLat.rad()))
 	{
 		//outside
 		return 0;// std::numeric_limits<T>::max();
@@ -52,18 +61,19 @@ short DEMTileData::GetValue(const IProjectionInfo::Coordinate & c)
 
 	value = 256 * a + b;
 
+
 	return value;
 }
 
 void DEMTileData::LoadTileData()
 {
+
 	if (this->data != nullptr)
 	{
 		return;
 	}
-
-	int fs = 0;
-	char * tileData = VFS::GetInstance()->GetFileContent(this->info.fileName, &fs);
+	
+	char * tileData = VFS::GetInstance()->GetFileContent(this->info.fileName, &dataSize);
 	this->data = reinterpret_cast<short *>(tileData);	
 }
 
