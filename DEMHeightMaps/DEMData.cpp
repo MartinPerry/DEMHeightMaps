@@ -15,27 +15,34 @@
 // ctors & dtor
 //=======================================================================================
 
-DEMData::DEMData(const std::string & dir, std::shared_ptr<IProjectionInfo> projection)
+DEMData::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProjectionInfo> projection)
 {	
+	this->tiles2Dmap.resize(360 * 180); //resolution 1 degree
+
 	this->projection = projection;
 
 	this->minHeight = 0;
 	this->maxHeight = 9000;
 
-	this->tileDir = dir;
-	VFS::Initialize(dir, DEBUG_MODE);
+	VFS::Initialize(DEBUG_MODE);
+	for (auto d : dirs)
+	{
+		VFS::GetInstance()->AddDirectory(d);		
+	}
 
-	this->LoadTileDir(dir);
+	this->LoadTiles();
 }
 
 DEMData::DEMData(const std::string & dir, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection)
 {
+	this->tiles2Dmap.resize(360 * 180); //resolution 1 degree
+
 	this->projection = projection;
 
 	this->minHeight = 0;
 	this->maxHeight = 9000;
 
-	this->tileDir = dir;
+	
 	VFS::Initialize(dir, DEBUG_MODE);
 
 	this->ImportTileList(tilesInfoXML);
@@ -55,7 +62,7 @@ void DEMData::SetMinMaxElevation(double minElev, double maxElev)
 // Loading
 //=======================================================================================
 
-void DEMData::LoadTileDir(const std::string & dir)
+void DEMData::LoadTiles()
 {	
 	std::vector<VFS_FILE *> tileFiles = VFS::GetInstance()->GetAllFiles();
 
@@ -65,25 +72,42 @@ void DEMData::LoadTileDir(const std::string & dir)
 
 	for (const auto & file : tileFiles)
 	{
+		TileInfo::SOURCE src = TileInfo::HGT;
 		const std::string & fileName = file->name;
 
-		if (fileName.length() != 7)
+		if (fileName.length() < 7)
 		{
 			printf("Incorrect tile file: %s\n", file->filePath);
 			continue;
 		}
 		
-		int lat = 10 * (fileName[1] - '0') + (fileName[2] - '0');
-		int lon = 100 * (fileName[4] - '0') + 10 * (fileName[5] - '0') + (fileName[6] - '0');
 
-		if (fileName[0] == 'S')
+		int lat = 10 * (fileName[1] - '0') + (fileName[2] - '0');
+		if ((fileName[0] == 'S') || (fileName[0] == 's'))
 		{
 			lat *= -1;
 		}
-		if (fileName[3] == 'W')
+
+
+		int lon = 0;
+		if (fileName[3] == '_') 
 		{
-			lon *= -1;
+			src = TileInfo::BIL;
+			lon = 100 * (fileName[5] - '0') + 10 * (fileName[6] - '0') + (fileName[7] - '0');
+			if ((fileName[4] == 'W') || (fileName[4] == 'w'))
+			{
+				lon *= -1;
+			}
 		}
+		else 
+		{
+			lon = 100 * (fileName[4] - '0') + 10 * (fileName[5] - '0') + (fileName[6] - '0');
+			if ((fileName[3] == 'W') || (fileName[3] == 'w'))
+			{
+				lon *= -1;
+			}
+		}
+						
 
 		int tileSize = 0;
 		int bytesPerValue = 0;
@@ -108,6 +132,10 @@ void DEMData::LoadTileDir(const std::string & dir)
 			tileSize = TILE_SIZE_3;
 			bytesPerValue = 2;
 		}
+		else 
+		{
+			continue;
+		}
 
 		DEMTileInfo tileInfo;
 		tileInfo.minLat = GeoCoordinate::deg(lat);
@@ -118,10 +146,10 @@ void DEMData::LoadTileDir(const std::string & dir)
 		tileInfo.width = tileSize;
 		tileInfo.height = tileSize;
 		tileInfo.bytesPerValue = bytesPerValue;
-		tileInfo.fileName = file->filePath;
-
+		tileInfo.fileName = file->filePath;				
+		tileInfo.source = src;
 		
-		this->tiles.push_back(tileInfo);
+		this->AddTile(tileInfo);
 	}	
 }
 
@@ -151,7 +179,7 @@ void DEMData::ImportTileList(const std::string & fileName)
 			di.height = atoi(tileNodes->Attribute("h"));
 			di.bytesPerValue = atoi(tileNodes->Attribute("b"));
 
-			this->tiles.push_back(di);
+			this->AddTile(di);
 
 			tileNodes = tileNodes->NextSiblingElement("tile");
 		}
@@ -159,6 +187,39 @@ void DEMData::ImportTileList(const std::string & fileName)
 
 	}
 
+}
+
+void DEMData::AddTile(const DEMTileInfo & ti)
+{
+	int lon = static_cast<int>(ti.minLon.deg());
+	int lat = static_cast<int>(ti.minLat.deg());
+	
+	//move it to + intervals
+	lat += 90;
+	lon += 180;
+
+	size_t index = lon + lat * 180;
+
+	for (auto & t : this->tiles2Dmap[index])
+	{
+		if ((t.minLat.rad() == ti.minLat.rad()) && (t.minLon.rad() == ti.minLon.rad()))
+		{
+			if (t.width * t.height < ti.width * ti.height)
+			{
+				//replace with "larger tile"
+				t.bytesPerValue = ti.bytesPerValue;
+				t.width = ti.width;
+				t.height = ti.height;
+				t.fileName = ti.fileName;
+				t.stepLon = ti.stepLon;
+				t.stepLat = ti.stepLat;
+				t.source = ti.source;
+				return;
+			}
+		}
+	}
+
+	this->tiles2Dmap[index].push_back(ti);
 }
 
 void DEMData::ExportTileList(const std::string & fileName)
@@ -169,20 +230,21 @@ void DEMData::ExportTileList(const std::string & fileName)
 	doc.LinkEndChild(root);
 	
 	TiXmlElement * tile;
-	for (size_t i = 0; i < this->tiles.size(); i++)
+	for (size_t i = 0; i < this->tiles2Dmap.size(); i++)
 	{
-		const DEMTileInfo & ti = this->tiles[i];
-
-		tile = new TiXmlElement("tile");
-		tile->SetAttribute("name", ti.fileName.c_str());
-		tile->SetDoubleAttribute("lat", ti.minLat.deg());
-		tile->SetDoubleAttribute("lon", ti.minLon.deg());
-		tile->SetDoubleAttribute("step_lat", ti.stepLat.deg());
-		tile->SetDoubleAttribute("step_lon", ti.stepLon.deg());
-		tile->SetAttribute("w", ti.width);
-		tile->SetAttribute("h", ti.height);
-		tile->SetAttribute("b", ti.bytesPerValue);
-		root->LinkEndChild(tile);
+		for (const DEMTileInfo & ti : this->tiles2Dmap[i])
+		{
+			tile = new TiXmlElement("tile");
+			tile->SetAttribute("name", ti.fileName.c_str());
+			tile->SetDoubleAttribute("lat", ti.minLat.deg());
+			tile->SetDoubleAttribute("lon", ti.minLon.deg());
+			tile->SetDoubleAttribute("step_lat", ti.stepLat.deg());
+			tile->SetDoubleAttribute("step_lon", ti.stepLon.deg());
+			tile->SetAttribute("w", ti.width);
+			tile->SetAttribute("h", ti.height);
+			tile->SetAttribute("b", ti.bytesPerValue);
+			root->LinkEndChild(tile);
+		}
 	}
 	
 	doc.SaveFile(fileName.c_str());
@@ -253,30 +315,14 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 
 	uint8_t * heightMap = new uint8_t[w * h];
 	memset(heightMap, 0, w * h * sizeof(uint8_t));
-
-	
-	
+		
 	this->projection->SetFrame(min, max, w, h, keepAR);
-	
-	IProjectionInfo::Coordinate minFrame;
-	IProjectionInfo::Coordinate maxFrame;
-	this->projection->ComputeAABB(minFrame, maxFrame);
-
-	DEMData::DEMArea area = this->GetTilesInArea(minFrame, maxFrame);
-
-	if (area.tileData.size() == 0)
-	{
-		printf("No tiles in area.\n");
-
-		return heightMap;
-	}
-	printf("Found tiles: %i\n", area.tileData.size());
-
-	std::vector<DEMTileData *> pixelTiles;
-	std::unordered_map<DEMTileData *, std::vector<size_t>> tilePixels;
+		
+	std::vector<DEMTileInfo *> pixelTiles;
+	std::unordered_map<DEMTileInfo *, std::vector<size_t>> tilePixels;
 
 	pixelTiles.resize(w * h, nullptr);
-
+	
 	std::vector<IProjectionInfo::Coordinate> coords;
 	for (int y = 0; y < h; y++)
 	{
@@ -285,38 +331,50 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 			IProjectionInfo::Coordinate c = this->projection->ProjectInverse({ x, y });
 			coords.push_back(c);
 
-			for (DEMTileData * ti : area.tileData)
+			DEMTileInfo * ti = this->GetTile(c);
+			if (ti == nullptr)
 			{
-				if (ti->info.IsPointInside(c))
-				{
-					pixelTiles[x + y * w] = ti;
-					tilePixels[ti].push_back(x + y * w);
-					break;
-				}
-
+				continue;
 			}
+
+			pixelTiles[x + y * w] = ti;
+			tilePixels[ti].push_back(x + y * w);			
 		}
 	}
 
+	printf("Tiles count: %i \n", tilePixels.size());
 
-	//find same tiles
-	
+	int count = 0;
+	int lastProgress = 0;
 	for (auto ti : tilePixels)
 	{
-		ti.first->LoadTileData();
+		DEMTileData td;
+		td.SetTileInfo(*ti.first);
+		td.LoadTileData();
 
 		for (size_t i = 0; i < ti.second.size(); i++)
 		{
 			size_t index = ti.second[i];
 			
-			short value = ti.first->GetValue(coords[index]);
+			short value = td.GetValue(coords[index]);
 			uint8_t v = static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));
 
 			heightMap[index] = v;			
 		}
 
-		ti.first->ReleaseData();
+		td.ReleaseData();	
+
+		double progress = ((static_cast<double>(count) / tilePixels.size()) * 100.0);
+		if (static_cast<int>(progress) != lastProgress)
+		{
+			printf("\rProgress: %i %%", static_cast<int>(progress));
+			fflush(stdout);
+			
+			lastProgress = static_cast<int>(progress);
+		}
+		count++;
 	}
+	
 
 	/*
 	for (int y = 0; y < h; y++)
@@ -335,53 +393,33 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 		}
 	}
 	*/
-	printf("Map builded\n");
+	printf("\nMap builded\n");
 
 	return heightMap;
 }
 
-DEMData::DEMArea DEMData::GetTilesInArea(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max)
+DEMTileInfo * DEMData::GetTile(const IProjectionInfo::Coordinate & c)
 {
-	DEMArea da(min, max);
-	
-	for (const DEMTileInfo & tile : this->tiles)
+	int lon = static_cast<int>(c.lon.deg());
+	int lat = static_cast<int>(c.lat.deg());
+
+	lat += 90;
+	lon += 180;
+
+	for (int y = -1; y <= 1; y++)
 	{
-		int isInside = false;		
-		for (int j = 0; j < 4; j++)
+		for (int x = -1; x <= 1; x++)
 		{
-			if (this->IsInside(tile.GetCorner(j), da))
+			for (auto & t : this->tiles2Dmap[(lon + x) + (lat + y) * 180])
 			{
-				isInside = true;
-				break;
+				if (t.IsPointInside(c))
+				{
+					return &t;
+				}
 			}
 		}
-
-		if (isInside == false)
-		{
-			continue;
-		}
-
-		if (this->cachedTiledData.find(tile) == this->cachedTiledData.end())
-		{											
-			this->cachedTiledData[tile].SetTileInfo(tile);
-		}
-
-		da.tileData.push_back(&this->cachedTiledData[tile]);
 	}
+	
 
-	return da;
-
+	return nullptr;
 }
-
-bool DEMData::IsInside(const IProjectionInfo::Coordinate & p, DEMArea & area)
-{
-
-	if (p.lat.rad() < area.min.lat.rad()) return false;
-	if (p.lat.rad() > area.max.lat.rad()) return false;
-
-	if (p.lon.rad() < area.min.lon.rad()) return false;
-	if (p.lon.rad() > area.max.lon.rad()) return false;
-
-	return true;
-}
-

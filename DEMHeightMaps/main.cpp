@@ -91,7 +91,8 @@ int main(int argc, char * argv[])
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
 	//DEMData dd("E://DEM_Voidfill_debug//");
 	//DEMData dd("E://DEM23//");
-	DEMData dd("E://DEM_Voidfill//", proj);
+	DEMData dd({ "E://DEM_Voidfill//", "E://DEM_srtm//" }, proj);
+	//DEMData dd({ "E://DEM_srtm//" }, proj);
 	dd.SetMinMaxElevation(0, 5000);
 
 	/*
@@ -124,9 +125,10 @@ int main(int argc, char * argv[])
 
 	return 0;
 	*/
-	int w = 8000;
-	int h = 4000;
+	int w = 12000;
+	int h = 6000;
 
+	//uint8_t * data = dd.BuildMap(w, h, { 65.0_deg,  13.5_deg }, { 65.1_deg, 25.0_deg }, true);
 	uint8_t * data = dd.BuildMap(w, h, { -90.0_deg, -180.0_deg }, { 90.0_deg, 180.0_deg }, true);
 	//uint8_t * data = dd.BuildMap(w, h, { 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg}, true);
 	//unsigned char * data = dd.BuildMap(w, h, {51.15_deg, 12.007_deg} {48.0_deg, 18.9999_deg}, true);
@@ -141,8 +143,9 @@ int main(int argc, char * argv[])
 	//memset(data, 0, w * h);
 	BorderRenderer br2("I://hranice//", proj);
 	br2.SetData(w, h, data);
-	br2.DrawBorders({ -90.0_deg, -180.0_deg }, { 90.0_deg, 180.0_deg }, true);		 //Evropa
-	//br2.DrawBorders({ 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg }, true);		 //Evropa
+	//br2.DrawBorders({ 65.0_deg,  13.5_deg }, { 65.1_deg, 25.0_deg }, true);		 //Evropa
+	br2.DrawBorders({ -90.0_deg, -180.0_deg }, { 90.0_deg, 180.0_deg }, true);		 //svet
+	//br2.DrawBorders( { 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg}, true);		 //Evropa
 	//br.DrawBorders({51.15_deg, 12.007_deg} {48.0_deg, 18.9999_deg}, true); //CZ
 	//Utils::SaveToFile(data, w * h, "D://rrr.raw");
 	

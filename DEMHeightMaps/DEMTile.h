@@ -17,6 +17,9 @@
 
 typedef struct TileInfo 
 {
+	enum SOURCE { HGT = 1, BIL = 2 };
+
+	
 	GeoCoordinate minLat; //sirka (+ => N, - => S)
 	GeoCoordinate minLon; //delka (+ => E, - => W)
 
@@ -25,6 +28,8 @@ typedef struct TileInfo
 
 	int width;
 	int height;
+
+	SOURCE source;
 
 	/**
 	* 2 --- 3
@@ -88,8 +93,8 @@ class DEMTileData
 	public:
 					
 		DEMTileData() = default;		
+		DEMTileData(DEMTileData const&) = default;
 
-		DEMTileData(DEMTileData const&) = delete;
 		DEMTileData& operator=(DEMTileData const&) = delete;		
 		~DEMTileData();
 

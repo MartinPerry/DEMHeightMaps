@@ -55,12 +55,21 @@ short DEMTileData::GetValue(const IProjectionInfo::Coordinate & c)
 	int index = static_cast<int>(x) + (this->info.height - 1 - static_cast<int>(y)) * this->info.width;
 
 	short value = this->data[index];	
+	
+	if (this->info.source == TileInfo::HGT)
+	{
+		short b = (value >> 8) & 0xff;  // next byte, bits 8-15
+		short a = value & 0xff;  // low-order byte: bits 0-7
 
-	short b = (value >> 8) & 0xff;  // next byte, bits 8-15
-	short a = value & 0xff;  // low-order byte: bits 0-7
-
-	value = 256 * a + b;
-
+		value = 256 * a + b;
+	}
+	else 
+	{		
+		if (value < 0)
+		{
+			value = 0;
+		}				
+	}
 
 	return value;
 }

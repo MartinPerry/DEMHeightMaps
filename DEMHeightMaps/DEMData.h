@@ -12,38 +12,23 @@
 
 #include "./DEMTile.h"
 
-
-
 typedef std::unordered_map<DEMTileInfo, DEMTileData, hashFunc, equalsFunc> DemTileMap;
+
+
 
 
 class DEMData 
 {
 	public:
 
-		typedef struct DEMArea
-		{
-			DEMArea(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max)
-				: min(min), max(max)
-			{
-			}
-
-			IProjectionInfo::Coordinate min;
-			IProjectionInfo::Coordinate max;
-					
-			std::list<DEMTileData *> tileData;
-
-		} DEMArea;
-
-		DEMData(const std::string & dir, std::shared_ptr<IProjectionInfo> projection);
+		DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProjectionInfo> projection);
 		DEMData(const std::string & dir, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection);
 		~DEMData();
 		
 		void SetMinMaxElevation(double minElev, double maxElev);
 
 		void ExportTileList(const std::string & fileName);
-		DEMData::DEMArea GetTilesInArea(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max);
-
+		
 		std::vector<TileInfo> BuildTileMap(int tileW, int tileH,
 			const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, 
 			const IProjectionInfo::Coordinate & tileStep);
@@ -60,17 +45,16 @@ class DEMData
 		double maxHeight;
 
 		std::shared_ptr<IProjectionInfo> projection;
+		
+		
+		std::vector<std::vector<DEMTileInfo>> tiles2Dmap; //[geo position][all tiles]
 
-		DemTileMap cachedTiledData;
-
-		std::string tileDir;
-		std::vector<DEMTileInfo> tiles;
-
-		void LoadTileDir(const std::string & dir);
+		void LoadTiles();
 		void ImportTileList(const std::string & fileName);
 
-		bool IsInside(const IProjectionInfo::Coordinate & p, DEMArea & area);
-		
+		DEMTileInfo * GetTile(const IProjectionInfo::Coordinate & c);
+		void AddTile(const DEMTileInfo & ti);
+
 
 		//http://ideone.com/Z7zldb
 		template<typename Index, typename Callable>

@@ -78,10 +78,17 @@ Create new VFS singleton class
 -------------------------------------------------------------*/
 void VFS::Initialize(const std::string &dir, VFS_MODE mode)
 {
-	single = new VFS();
+	single = new VFS();	
 	single->AddDirectory(dir);	
 	single->mode = mode;
 }
+
+void VFS::Initialize(VFS_MODE mode)
+{
+	single = new VFS();	
+	single->mode = mode;
+}
+
 
 /*-----------------------------------------------------------
 Function:	Destroy

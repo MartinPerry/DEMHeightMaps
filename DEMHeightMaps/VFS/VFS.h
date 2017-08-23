@@ -141,6 +141,7 @@ class VFS
 {
 	public:
 		static void Initialize(const std::string &dir, VFS_MODE mode = RELEASE_MODE);				//init from default dir
+		static void Initialize(VFS_MODE mode = RELEASE_MODE);				//init from default dir
 		
 		static void Destroy();
 		static VFS * GetInstance();
