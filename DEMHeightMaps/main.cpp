@@ -89,7 +89,8 @@ int main(int argc, char * argv[])
 	//dd.ExportTileList("D://tiles.xml");
 
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
-	//DEMData dd("E://DEM_Voidfill_debug//");
+	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
+	//DEMData dd({ "E://debug_uk//" }, proj);
 	//DEMData dd("E://DEM23//");
 	DEMData dd({ "E://DEM_Voidfill//", "E://DEM_srtm//" }, proj);
 	//DEMData dd({ "E://DEM_srtm//" }, proj);
@@ -125,24 +126,29 @@ int main(int argc, char * argv[])
 
 	return 0;
 	*/
-	int w = 12000;
-	int h = 6000;
+	int w = 6000;
+	int h = 3000;
 
+	//uint8_t * data = dd.BuildMap(w, h, { 50.0_deg, -2.0_deg }, { 52.0_deg, 2.0_deg }, true);
 	//uint8_t * data = dd.BuildMap(w, h, { 65.0_deg,  13.5_deg }, { 65.1_deg, 25.0_deg }, true);
 	uint8_t * data = dd.BuildMap(w, h, { -90.0_deg, -180.0_deg }, { 90.0_deg, 180.0_deg }, true);
 	//uint8_t * data = dd.BuildMap(w, h, { 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg}, true);
 	//unsigned char * data = dd.BuildMap(w, h, {51.15_deg, 12.007_deg} {48.0_deg, 18.9999_deg}, true);
 
 	Utils::SaveToFile<uint8_t>(data, w * h, "D://rrr.raw");
-	//-------------------------------------------------------------
-	//-------------------------------------------------------------
-	//-------------------------------------------------------------
+	lodepng::encode("D://rrr.png", data, w, h, LodePNGColorType::LCT_GREY, 8);
 
+	//-------------------------------------------------------------
+	//-------------------------------------------------------------
+	//-------------------------------------------------------------
+	//return 0;
 	//return 0;
 	//unsigned char * data = new unsigned char[w * h];
 	//memset(data, 0, w * h);
 	BorderRenderer br2("I://hranice//", proj);
 	br2.SetData(w, h, data);
+
+	//br2.DrawBorders({ 50.0_deg, -2.0_deg }, { 52.0_deg, 2.0_deg }, true);
 	//br2.DrawBorders({ 65.0_deg,  13.5_deg }, { 65.1_deg, 25.0_deg }, true);		 //Evropa
 	br2.DrawBorders({ -90.0_deg, -180.0_deg }, { 90.0_deg, 180.0_deg }, true);		 //svet
 	//br2.DrawBorders( { 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg}, true);		 //Evropa
@@ -150,7 +156,7 @@ int main(int argc, char * argv[])
 	//Utils::SaveToFile(data, w * h, "D://rrr.raw");
 	
 	
-	uint32_t error = lodepng::encode("D://rrr.png", data, w, h, LodePNGColorType::LCT_GREY, 8);
+	uint32_t error = lodepng::encode("D://rrr_border.png", data, w, h, LodePNGColorType::LCT_GREY, 8);
 
 
 	return 0;

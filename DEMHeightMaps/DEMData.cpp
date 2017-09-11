@@ -142,6 +142,8 @@ void DEMData::LoadTiles()
 		tileInfo.minLon = GeoCoordinate::deg(lon);
 		tileInfo.stepLat = GeoCoordinate::deg(1);
 		tileInfo.stepLon = GeoCoordinate::deg(1);
+		tileInfo.pixelStepLat = GeoCoordinate::deg(1.0 / (tileSize - 1)); //-1 -> we are counting "between" pixels, not pixels
+		tileInfo.pixelStepLon = GeoCoordinate::deg(1.0 / (tileSize - 1));
 
 		tileInfo.width = tileSize;
 		tileInfo.height = tileSize;
@@ -327,7 +329,7 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 	for (int y = 0; y < h; y++)
 	{
 		for (int x = 0; x < w; x++)
-		{			
+		{				
 			IProjectionInfo::Coordinate c = this->projection->ProjectInverse({ x, y });
 			coords.push_back(c);
 
@@ -355,6 +357,7 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 		for (size_t i = 0; i < ti.second.size(); i++)
 		{
 			size_t index = ti.second[i];
+			
 			
 			short value = td.GetValue(coords[index]);
 			uint8_t v = static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));

@@ -15,6 +15,7 @@
 //=============================================================================================
 //=============================================================================================
 
+//https://librenepal.com/article/reading-srtm-data-with-python/
 typedef struct TileInfo 
 {
 	enum SOURCE { HGT = 1, BIL = 2 };
@@ -25,6 +26,9 @@ typedef struct TileInfo
 
 	GeoCoordinate stepLat;
 	GeoCoordinate stepLon;
+
+	GeoCoordinate pixelStepLat;
+	GeoCoordinate pixelStepLon;
 
 	int width;
 	int height;
