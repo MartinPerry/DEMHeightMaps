@@ -102,11 +102,12 @@ class DEMTileData
 		DEMTileData& operator=(DEMTileData const&) = delete;		
 		~DEMTileData();
 
+		DEMTileInfo * GetTileInfo();
 
 		void ReleaseData();
 		void LoadTileData();
 
-		void SetTileInfo(const DEMTileInfo & info);
+		void SetTileInfo(DEMTileInfo * info);
 		short GetValue(const IProjectionInfo::Coordinate & c);
 
 		friend class DEMData;
@@ -115,9 +116,12 @@ class DEMTileData
 		
 		
 
-		DEMTileInfo info;
+		DEMTileInfo * info;
+
 		short * data;
 		int dataSize;
+
+		short GetValue(int index);
 
 		
 };

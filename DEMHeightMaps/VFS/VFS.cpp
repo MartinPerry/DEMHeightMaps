@@ -3,6 +3,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <minizip/unzip.h>
+#include <fstream>
+#include <string>
+#include <iostream>
 
 #include "VFSUtils.h"
 
@@ -152,6 +155,12 @@ bool VFS::ExistFile(const std::string & fileName)
 	return true;
 }
 
+bool VFS::IsFileInArchive(const std::string & fileName)
+{
+	VFS_FILE * file = this->fileSystem->GetFile(fileName);
+	return file->archiveInfo != nullptr;
+}
+
 VFS_FILE * VFS::OpenFile(const std::string &path)
 {
 	std::string workingPath;
@@ -281,8 +290,7 @@ std::string VFS::GetFileString(const std::string &path)
 }
 
 int VFS::Read(void * buffer, size_t elementSize, size_t bytesCount, VFS_FILE * file)
-{
-	
+{	
 	if (file->archiveInfo == NULL) 
 	{
 		return fread(buffer, elementSize, bytesCount, static_cast<FILE *>(file->filePtr));
@@ -330,7 +338,7 @@ int VFS::ReadEntireFile(void * buffer, VFS_FILE * file)
 	{
 		return fread(buffer, 1, file->fileSize, static_cast<FILE *>(file->filePtr));
 	}
-
+	
 	return unzReadCurrentFile(file->archiveInfo->ptr, buffer, file->fileSize);
 }
 
@@ -677,3 +685,54 @@ VFS_FILE * VFS::CreateDebugFile(std::string path)
 
 	return file;
 }
+
+
+void VFS::ExportStructure(const std::string & fileName)
+{
+	std::string all = "";
+
+	auto fs = this->GetAllFiles();
+	for (auto & f : fs)
+	{
+		std::string fi = "";
+
+		fi += f->ext;
+		fi += ";";
+		fi += f->filePath;
+		fi += ";";
+		fi += std::to_string(f->fileSize);
+		fi += ";";
+		fi += f->fullName;
+		fi += ";";
+		fi += f->name;
+		fi += ";";
+
+		if (f->archiveInfo != nullptr)
+		{
+			fi += std::to_string(f->archiveInfo->compressedSize);
+			fi += ";";
+			fi += f->archiveInfo->filePath;
+			fi += ";";
+			fi += std::to_string(f->archiveInfo->method);
+			fi += ";";
+			fi += std::to_string(f->archiveInfo->offset);
+			fi += ";";
+		}
+
+		all += fi;
+		all += "\n";
+	}
+
+	
+	std::cin >> all;
+	std::ofstream out(fileName);
+	out << all;
+	out.close();
+}
+
+/*
+void VFS::ImportStructure()
+{
+	//this->fileSystem->AddFile(vfsPath, file);
+}
+*/

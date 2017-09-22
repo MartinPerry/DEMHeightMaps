@@ -33,7 +33,7 @@ DEMData::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProje
 	this->LoadTiles();
 }
 
-DEMData::DEMData(const std::string & dir, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection)
+DEMData::DEMData(std::initializer_list<std::string> dirs, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection)
 {
 	this->tiles2Dmap.resize(360 * 180); //resolution 1 degree
 
@@ -43,7 +43,12 @@ DEMData::DEMData(const std::string & dir, const std::string & tilesInfoXML, std:
 	this->maxHeight = 9000;
 
 	
-	VFS::Initialize(dir, DEBUG_MODE);
+	VFS::Initialize(DEBUG_MODE);
+	for (auto d : dirs)
+	{
+		VFS::GetInstance()->AddDirectory(d);
+	}
+	
 
 	this->ImportTileList(tilesInfoXML);
 }
@@ -82,7 +87,7 @@ void DEMData::LoadTiles()
 		}
 		
 
-		int lat = 10 * (fileName[1] - '0') + (fileName[2] - '0');
+		int lat = 10 * (fileName[1] - '0') + (fileName[2] - '0');		
 		if ((fileName[0] == 'S') || (fileName[0] == 's'))
 		{
 			lat *= -1;
@@ -91,7 +96,7 @@ void DEMData::LoadTiles()
 
 		int lon = 0;
 		if (fileName[3] == '_') 
-		{
+		{			
 			src = TileInfo::BIL;
 			lon = 100 * (fileName[5] - '0') + 10 * (fileName[6] - '0') + (fileName[7] - '0');
 			if ((fileName[4] == 'W') || (fileName[4] == 'w'))
@@ -171,15 +176,24 @@ void DEMData::ImportTileList(const std::string & fileName)
 	{		
 		while (tileNodes)
 		{
+			std::string src = tileNodes->Attribute("source");;
+
 			DEMTileInfo di;
 			di.fileName = tileNodes->Attribute("name");
 			di.minLat = GeoCoordinate::deg(atof(tileNodes->Attribute("lat")));
 			di.minLon = GeoCoordinate::deg(atof(tileNodes->Attribute("lon")));
 			di.stepLat = GeoCoordinate::deg(atof(tileNodes->Attribute("step_lat")));
 			di.stepLon = GeoCoordinate::deg(atof(tileNodes->Attribute("step_lon")));
+			di.pixelStepLat = GeoCoordinate::deg(atof(tileNodes->Attribute("pixel_step_lat")));
+			di.pixelStepLon = GeoCoordinate::deg(atof(tileNodes->Attribute("pixel_step_lon")));
 			di.width = atoi(tileNodes->Attribute("w"));
 			di.height = atoi(tileNodes->Attribute("h"));
 			di.bytesPerValue = atoi(tileNodes->Attribute("b"));
+			di.source = DEMTileInfo::HGT;
+			if (src == "bil")
+			{
+				di.source = DEMTileInfo::BIL;
+			}
 
 			this->AddTile(di);
 
@@ -209,13 +223,18 @@ void DEMData::AddTile(const DEMTileInfo & ti)
 			if (t.width * t.height < ti.width * ti.height)
 			{
 				//replace with "larger tile"
+
+				t.pixelStepLat = ti.pixelStepLat;
+				t.pixelStepLon = ti.pixelStepLon;
+
 				t.bytesPerValue = ti.bytesPerValue;
 				t.width = ti.width;
 				t.height = ti.height;
 				t.fileName = ti.fileName;
 				t.stepLon = ti.stepLon;
 				t.stepLat = ti.stepLat;
-				t.source = ti.source;
+				t.source = ti.source;				
+
 				return;
 			}
 		}
@@ -242,9 +261,13 @@ void DEMData::ExportTileList(const std::string & fileName)
 			tile->SetDoubleAttribute("lon", ti.minLon.deg());
 			tile->SetDoubleAttribute("step_lat", ti.stepLat.deg());
 			tile->SetDoubleAttribute("step_lon", ti.stepLon.deg());
+			tile->SetDoubleAttribute("pixel_step_lat", ti.pixelStepLat.deg());
+			tile->SetDoubleAttribute("pixel_step_lon", ti.pixelStepLon.deg());
 			tile->SetAttribute("w", ti.width);
 			tile->SetAttribute("h", ti.height);
 			tile->SetAttribute("b", ti.bytesPerValue);
+			if (ti.source == DEMTileInfo::HGT) tile->SetAttribute("source", "hgt");
+			else if (ti.source == DEMTileInfo::BIL) tile->SetAttribute("source", "bil");
 			root->LinkEndChild(tile);
 		}
 	}
@@ -256,7 +279,7 @@ void DEMData::ExportTileList(const std::string & fileName)
 // Data obtaining
 //=======================================================================================
 
-std::vector<TileInfo> DEMData::BuildTileMap(int tileW, int tileH, 
+std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildTileMap(int tileW, int tileH,
 	const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, 
 	const IProjectionInfo::Coordinate & tileStep)
 {
@@ -264,10 +287,12 @@ std::vector<TileInfo> DEMData::BuildTileMap(int tileW, int tileH,
 	//uint32_t lonLength = static_cast<uint32_t>(std::ceil((max.lon.rad() - min.lon.rad()) / pixelStep.lon.rad()));
 	//uint32_t latLength = static_cast<uint32_t>(std::ceil((max.lat.rad() - min.lat.rad()) / pixelStep.lat.rad()));
 
-	std::vector<TileInfo> res;
+	std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> res;
 
+	
+	size_t y = 0; //file
 
-	for (double lat = min.lat.rad(); lat <= max.lat.rad(); lat += tileStep.lat.rad())
+	for (double lat = min.lat.rad(); lat < max.lat.rad(); lat += tileStep.lat.rad())
 	{
 		bool breakLat = false;
 		if (lat >= max.lat.rad())
@@ -275,9 +300,10 @@ std::vector<TileInfo> DEMData::BuildTileMap(int tileW, int tileH,
 			lat = max.lat.rad();
 			breakLat = true;
 		}
-
-		for (double lon = min.lon.rad(); lon <= max.lon.rad(); lon += tileStep.lon.rad())
-		{		
+		
+		size_t x = 0; //dir
+		for (double lon = min.lon.rad(); lon < max.lon.rad(); lon += tileStep.lon.rad())
+		{					
 			bool breakLon = false;
 			if (lon >= max.lon.rad())
 			{
@@ -293,19 +319,25 @@ std::vector<TileInfo> DEMData::BuildTileMap(int tileW, int tileH,
 			ti.minLat = GeoCoordinate::rad(lat);
 			ti.stepLon = tileStep.lon;
 			ti.stepLat = tileStep.lat;
+			ti.pixelStepLat = GeoCoordinate::rad(tileStep.lat.rad() / tileH);
+			ti.pixelStepLon = GeoCoordinate::rad(tileStep.lon.rad() / tileW);
 
-			res.push_back(ti);
+			res[x][y] = ti;
 
 			if (breakLon)
 			{
 				break;
 			}
+
+			x++;
 		}
 
 		if (breakLat)
 		{
 			break;
 		}
+
+		y++;
 	}
 
 	return res;
@@ -320,12 +352,16 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 		
 	this->projection->SetFrame(min, max, w, h, keepAR);
 		
-	std::vector<DEMTileInfo *> pixelTiles;
-	std::unordered_map<DEMTileInfo *, std::vector<size_t>> tilePixels;
-
-	pixelTiles.resize(w * h, nullptr);
 	
-	std::vector<IProjectionInfo::Coordinate> coords;
+
+	coords.clear();
+	tilePixels.clear();
+	//pixelTiles.clear();
+	
+
+	//pixelTiles.resize(w * h, nullptr);
+	
+	
 	for (int y = 0; y < h; y++)
 	{
 		for (int x = 0; x < w; x++)
@@ -339,8 +375,10 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 				continue;
 			}
 
-			pixelTiles[x + y * w] = ti;
-			tilePixels[ti].push_back(x + y * w);			
+			//pixelTiles[x + y * w] = ti;
+			tilePixels[ti].push_back(x + y * w);	
+
+			
 		}
 	}
 
@@ -349,20 +387,20 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 	int count = 0;
 	int lastProgress = 0;
 	for (auto ti : tilePixels)
-	{
+	{		
 		DEMTileData td;
-		td.SetTileInfo(*ti.first);
-		td.LoadTileData();
-
+		td.SetTileInfo(ti.first);
+		
+		if (ti.second.size() > 10)
+		{
+			td.LoadTileData();
+		}
+		
 		for (size_t i = 0; i < ti.second.size(); i++)
 		{
-			size_t index = ti.second[i];
-			
-			
-			short value = td.GetValue(coords[index]);
-			uint8_t v = static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));
+			size_t index = ti.second[i];									
 
-			heightMap[index] = v;			
+			heightMap[index] = static_cast<uint8_t>(this->GetHeight(td, index));
 		}
 
 		td.ReleaseData();	
@@ -401,6 +439,98 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 	return heightMap;
 }
 
+DEMData::Neighbors DEMData::GetCoordinateNeighbors(const IProjectionInfo::Coordinate & c, DEMTileInfo * ti)
+{
+
+	double stepLatRad = this->projection->GetStepLat().rad();
+	double stepLonRad = this->projection->GetStepLon().rad();
+
+
+	//calculate how many pixels is step in DEM tiles
+
+	//pixel based step
+	int samplingStepLon = 10;
+	int samplingStepLat = 10;
+
+	//calculate how any pixels is between two "pixels" and divide it with sampling step
+	int stepLon = static_cast<int>((stepLonRad / ti->pixelStepLon.rad()) / samplingStepLon);
+	int stepLat = static_cast<int>((stepLatRad / ti->pixelStepLat.rad()) / samplingStepLat);
+
+	//offset start / end by step
+	double startLat = c.lat.rad() - 0.5 * stepLat * ti->pixelStepLat.rad();
+	double endLat = c.lat.rad() + 0.5 * stepLat * ti->pixelStepLat.rad();
+
+	double startLon = c.lon.rad() - 0.5 * stepLon * ti->pixelStepLon.rad();
+	double endLon = c.lon.rad() + 0.5 * stepLon * ti->pixelStepLon.rad();
+
+	double dLat = samplingStepLat * ti->pixelStepLat.rad();
+	double dLon = samplingStepLon * ti->pixelStepLon.rad();
+
+	//iterate all coordinates in radius
+	Neighbors ns;
+
+	IProjectionInfo::Coordinate nc;
+	for (double nLat = startLat; nLat <= endLat; nLat += dLat)
+	{
+		nc.lat = GeoCoordinate::rad(nLat);
+		for (double nLon = startLon; nLon <= endLon; nLon += dLon)
+		{
+			nc.lon = GeoCoordinate::rad(nLon);
+
+			DEMTileInfo * ti = this->GetTile(nc);
+			if (ti == nullptr)
+			{
+				continue;
+			}
+
+			ns.neighborsCache[ti].push_back(ns.neighborCoord.size());
+			ns.neighborCoord.push_back(nc);
+		}
+	}
+
+	return ns;
+}
+
+short DEMData::GetHeight(DEMTileData & td, int index)
+{
+	double value = 0;
+
+
+	const IProjectionInfo::Coordinate & c = coords[index];
+	value = td.GetValue(c);
+
+	/*
+	//with neighbors
+	int count = 1;
+
+	//get all neighbors for given pixel at [index]
+	auto & n = this->GetCoordinateNeighbors(coords[index], td.GetTileInfo());
+
+	//printf("Neighbors for %d: %d\n", index, n.neighborCoord.size());
+
+	//iterate neighbors cache ordered by tile
+	for (auto & nt : n.neighborsCache)
+	{
+		DEMTileData td;
+		td.SetTileInfo(nt.first);
+		td.LoadTileData();
+
+		//for each tile, go over "positions" within this tile
+		for (size_t i = 0; i < nt.second.size(); i++)
+		{
+			size_t nIndex = nt.second[i];
+			value += td.GetValue(n.neighborCoord[nIndex]);
+			
+			count++;
+		}
+	}
+
+	value /= count;
+	*/
+
+	return static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));
+}
+
 DEMTileInfo * DEMData::GetTile(const IProjectionInfo::Coordinate & c)
 {
 	int lon = static_cast<int>(c.lon.deg());
@@ -409,9 +539,15 @@ DEMTileInfo * DEMData::GetTile(const IProjectionInfo::Coordinate & c)
 	lat += 90;
 	lon += 180;
 
-	for (int y = -1; y <= 1; y++)
+	int startX = (lon <= 0) ? 0 : -1;
+	int startY = (lat <= 0) ? 0 : -1;
+
+	int endX = (lon >= 360) ? 0 : 1;
+	int endY = (lat >= 180) ? 0 : 1;
+
+	for (int y = startY; y <= endY; y++)
 	{
-		for (int x = -1; x <= 1; x++)
+		for (int x = startX; x <= endX; x++)
 		{
 			for (auto & t : this->tiles2Dmap[(lon + x) + (lat + y) * 180])
 			{

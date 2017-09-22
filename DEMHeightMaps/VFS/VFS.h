@@ -146,7 +146,11 @@ class VFS
 		static void Destroy();
 		static VFS * GetInstance();
 
+		bool IsFileInArchive(const std::string & fileName);
 		bool ExistFile(const std::string & fileName);
+
+		void ExportStructure(const std::string & fileName);
+		//void ImportStructure();
 
 		std::vector<VFS_FILE *> GetAllFiles();
 		std::vector<VFS_FILE *> GetMainFiles();
