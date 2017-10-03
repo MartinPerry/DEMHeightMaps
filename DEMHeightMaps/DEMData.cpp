@@ -15,7 +15,8 @@
 // ctors & dtor
 //=======================================================================================
 
-DEMData::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProjectionInfo> projection)
+template <typename HeightType>
+DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProjectionInfo> projection)
 {	
 	this->tiles2Dmap.resize(360 * 180); //resolution 1 degree
 
@@ -23,6 +24,7 @@ DEMData::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProje
 
 	this->minHeight = 0;
 	this->maxHeight = 9000;
+	this->elevMapping = false;
 
 	VFS::Initialize(DEBUG_MODE);
 	for (auto d : dirs)
@@ -30,10 +32,16 @@ DEMData::DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProje
 		VFS::GetInstance()->AddDirectory(d);		
 	}
 
+	this->tilesCache = new MemoryCache<std::string, TileRawData, LRUControl<std::string>>(
+		CACHE_SIZE_GB(20), LRUControl<std::string>()
+		);
+
+
 	this->LoadTiles();
 }
 
-DEMData::DEMData(std::initializer_list<std::string> dirs, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection)
+template <typename HeightType>
+DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection)
 {
 	this->tiles2Dmap.resize(360 * 180); //resolution 1 degree
 
@@ -41,6 +49,7 @@ DEMData::DEMData(std::initializer_list<std::string> dirs, const std::string & ti
 
 	this->minHeight = 0;
 	this->maxHeight = 9000;
+	this->elevMapping = false;
 
 	
 	VFS::Initialize(DEBUG_MODE);
@@ -49,15 +58,27 @@ DEMData::DEMData(std::initializer_list<std::string> dirs, const std::string & ti
 		VFS::GetInstance()->AddDirectory(d);
 	}
 	
+	this->tilesCache = new MemoryCache<std::string, TileRawData, LRUControl<std::string>>(
+		CACHE_SIZE_GB(20), LRUControl<std::string>()
+		);
 
 	this->ImportTileList(tilesInfoXML);
 }
 
-DEMData::~DEMData()
+template <typename HeightType>
+DEMData<HeightType>::~DEMData()
 {
+	delete this->tilesCache;
 }
 
-void DEMData::SetMinMaxElevation(double minElev, double maxElev)
+template <typename HeightType>
+void DEMData<HeightType>::SetElevationMappingEnabled(bool val)
+{
+	this->elevMapping = val;
+}
+
+template <typename HeightType>
+void DEMData<HeightType>::SetMinMaxElevation(double minElev, double maxElev)
 {
 	this->minHeight = minElev;
 	this->maxHeight = maxElev;
@@ -67,7 +88,8 @@ void DEMData::SetMinMaxElevation(double minElev, double maxElev)
 // Loading
 //=======================================================================================
 
-void DEMData::LoadTiles()
+template <typename HeightType>
+void DEMData<HeightType>::LoadTiles()
 {	
 	std::vector<VFS_FILE *> tileFiles = VFS::GetInstance()->GetAllFiles();
 
@@ -160,7 +182,8 @@ void DEMData::LoadTiles()
 	}	
 }
 
-void DEMData::ImportTileList(const std::string & fileName)
+template <typename HeightType>
+void DEMData<HeightType>::ImportTileList(const std::string & fileName)
 {
 	TiXmlDocument doc(fileName.c_str());
 	bool loadOkay = doc.LoadFile();
@@ -205,7 +228,8 @@ void DEMData::ImportTileList(const std::string & fileName)
 
 }
 
-void DEMData::AddTile(const DEMTileInfo & ti)
+template <typename HeightType>
+void DEMData<HeightType>::AddTile(const DEMTileInfo & ti)
 {
 	int lon = static_cast<int>(ti.minLon.deg());
 	int lat = static_cast<int>(ti.minLat.deg());
@@ -243,7 +267,8 @@ void DEMData::AddTile(const DEMTileInfo & ti)
 	this->tiles2Dmap[index].push_back(ti);
 }
 
-void DEMData::ExportTileList(const std::string & fileName)
+template <typename HeightType>
+void DEMData<HeightType>::ExportTileList(const std::string & fileName)
 {
 	TiXmlDocument doc;
 	
@@ -279,7 +304,8 @@ void DEMData::ExportTileList(const std::string & fileName)
 // Data obtaining
 //=======================================================================================
 
-std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildTileMap(int tileW, int tileH,
+template <typename HeightType>
+std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData<HeightType>::BuildTileMap(int tileW, int tileH,
 	const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, 
 	const IProjectionInfo::Coordinate & tileStep)
 {
@@ -289,10 +315,23 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildT
 
 	std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> res;
 
+	this->ProcessTileMap(tileW, tileH, min, max, tileStep, [&](TileInfo & ti, int x, int y) {
+		res[x][y] = ti;
+	});
 	
-	size_t y = 0; //file
+	return res;
+}
 
-	for (double lat = min.lat.rad(); lat < max.lat.rad(); lat += tileStep.lat.rad())
+template <typename HeightType>
+void DEMData<HeightType>::ProcessTileMap(int tileW, int tileH,
+	const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max,
+	const IProjectionInfo::Coordinate & tileStep,
+	std::function<void(TileInfo & ti, int x, int y)> tileCallback)
+{
+	size_t y = 0; //file
+	double tileStepLat = tileStep.lat.rad();
+
+	for (double lat = min.lat.rad(); lat < max.lat.rad(); lat += tileStepLat)
 	{
 		bool breakLat = false;
 		if (lat >= max.lat.rad())
@@ -300,14 +339,28 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildT
 			lat = max.lat.rad();
 			breakLat = true;
 		}
-		
+
+		if (lat + tileStepLat > max.lat.rad())
+		{
+			tileStepLat -= ((lat + tileStepLat) - max.lat.rad());
+			breakLat = true;
+		}
+
 		size_t x = 0; //dir
-		for (double lon = min.lon.rad(); lon < max.lon.rad(); lon += tileStep.lon.rad())
-		{					
+		double tileStepLon = tileStep.lon.rad();
+
+		for (double lon = min.lon.rad(); lon < max.lon.rad(); lon += tileStepLon)
+		{
 			bool breakLon = false;
 			if (lon >= max.lon.rad())
 			{
 				lon = max.lon.rad();
+				breakLon = true;
+			}
+
+			if (lon + tileStepLon > max.lon.rad())
+			{
+				tileStepLon -= ((lon + tileStepLon) - max.lon.rad());
 				breakLon = true;
 			}
 
@@ -317,12 +370,12 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildT
 			ti.height = tileH;
 			ti.minLon = GeoCoordinate::rad(lon);
 			ti.minLat = GeoCoordinate::rad(lat);
-			ti.stepLon = tileStep.lon;
-			ti.stepLat = tileStep.lat;
-			ti.pixelStepLat = GeoCoordinate::rad(tileStep.lat.rad() / tileH);
-			ti.pixelStepLon = GeoCoordinate::rad(tileStep.lon.rad() / tileW);
+			ti.stepLon = GeoCoordinate::rad(tileStepLon);
+			ti.stepLat = GeoCoordinate::rad(tileStepLat);
+			ti.pixelStepLat = GeoCoordinate::rad(tileStepLat / tileH);
+			ti.pixelStepLon = GeoCoordinate::rad(tileStepLon / tileW);
 
-			res[x][y] = ti;
+			tileCallback(ti, x, y);
 
 			if (breakLon)
 			{
@@ -339,16 +392,13 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData::BuildT
 
 		y++;
 	}
-
-	return res;
 }
 
-uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
+template <typename HeightType>
+HeightType * DEMData<HeightType>::BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
 {
 	printf("BUILD map Lon: %f %f / Lat: %f %f\n", min.lon.deg(), max.lon.deg(), min.lat.deg(), max.lat.deg());
 
-	uint8_t * heightMap = new uint8_t[w * h];
-	memset(heightMap, 0, w * h * sizeof(uint8_t));
 		
 	this->projection->SetFrame(min, max, w, h, keepAR);
 		
@@ -382,16 +432,26 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 		}
 	}
 
+	
+	if (tilePixels.size() == 0)
+	{
+		return nullptr;
+	}
+
 	printf("Tiles count: %i \n", tilePixels.size());
+
+	HeightType * heightMap = new HeightType[w * h];
+	memset(heightMap, 0, w * h * sizeof(HeightType));
+
 
 	int count = 0;
 	int lastProgress = 0;
 	for (auto ti : tilePixels)
 	{		
-		DEMTileData td;
+		DEMTileData td(this->tilesCache);
 		td.SetTileInfo(ti.first);
 		
-		if (ti.second.size() > 10)
+		//if (ti.second.size() > 10)
 		{
 			td.LoadTileData();
 		}
@@ -400,11 +460,12 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 		{
 			size_t index = ti.second[i];									
 
-			heightMap[index] = static_cast<uint8_t>(this->GetHeight(td, index));
+			heightMap[index] = static_cast<HeightType>(this->GetHeight(td, index));
 		}
 
-		td.ReleaseData();	
+		//td.ReleaseData();	
 
+#ifdef _DEBUG
 		double progress = ((static_cast<double>(count) / tilePixels.size()) * 100.0);
 		if (static_cast<int>(progress) != lastProgress)
 		{
@@ -414,6 +475,7 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 			lastProgress = static_cast<int>(progress);
 		}
 		count++;
+#endif
 	}
 	
 
@@ -439,7 +501,8 @@ uint8_t * DEMData::BuildMap(int w, int h, const IProjectionInfo::Coordinate & mi
 	return heightMap;
 }
 
-DEMData::Neighbors DEMData::GetCoordinateNeighbors(const IProjectionInfo::Coordinate & c, DEMTileInfo * ti)
+template <typename HeightType>
+Neighbors DEMData<HeightType>::GetCoordinateNeighbors(const IProjectionInfo::Coordinate & c, DEMTileInfo * ti)
 {
 
 	double stepLatRad = this->projection->GetStepLat().rad();
@@ -491,7 +554,8 @@ DEMData::Neighbors DEMData::GetCoordinateNeighbors(const IProjectionInfo::Coordi
 	return ns;
 }
 
-short DEMData::GetHeight(DEMTileData & td, int index)
+template <typename HeightType>
+short DEMData<HeightType>::GetHeight(DEMTileData & td, int index)
 {
 	double value = 0;
 
@@ -528,10 +592,19 @@ short DEMData::GetHeight(DEMTileData & td, int index)
 	value /= count;
 	*/
 
-	return static_cast<uint8_t>(Utils::MapRange(this->minHeight, this->maxHeight, 0.0, 255.0, value));
+	if (this->elevMapping == false)
+	{
+		return static_cast<HeightType>(value);
+	}
+	else
+	{
+		return static_cast<HeightType>(Utils::MapRange(this->minHeight, this->maxHeight,
+			0.0, std::numeric_limits<HeightType>::max(), value));
+	}
 }
 
-DEMTileInfo * DEMData::GetTile(const IProjectionInfo::Coordinate & c)
+template <typename HeightType>
+DEMTileInfo * DEMData<HeightType>::GetTile(const IProjectionInfo::Coordinate & c)
 {
 	int lon = static_cast<int>(c.lon.deg());
 	int lat = static_cast<int>(c.lat.deg());
@@ -562,3 +635,8 @@ DEMTileInfo * DEMData::GetTile(const IProjectionInfo::Coordinate & c)
 
 	return nullptr;
 }
+
+
+template class DEMData<uint8_t>;
+template class DEMData<uint16_t>;
+template class DEMData<short>;

@@ -61,6 +61,15 @@
     <Filter Include="Source Files\DB\Utils">
       <UniqueIdentifier>{5464ca78-e1a6-4bed-90f5-1a95af5d7b26}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Cache">
+      <UniqueIdentifier>{02eb8d96-c37b-4112-b05c-f253ba0083c5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\VFS\minizip">
+      <UniqueIdentifier>{f2bf4d3d-c93f-47e1-8841-323daaaee95e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\VFS\minizip">
+      <UniqueIdentifier>{3ecfc625-bbe3-48af-9820-5d7a98a05211}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -158,6 +167,18 @@
     </ClCompile>
     <ClCompile Include="DB\Utils\Logger.cpp">
       <Filter>Source Files\DB\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\minizip\ioapi.c">
+      <Filter>Source Files\VFS\minizip</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\minizip\mztools.c">
+      <Filter>Source Files\VFS\minizip</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\minizip\unzip.c">
+      <Filter>Source Files\VFS\minizip</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\minizip\zip.c">
+      <Filter>Source Files\VFS\minizip</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -262,6 +283,39 @@
     </ClInclude>
     <ClInclude Include="DB\Utils\Logger.h">
       <Filter>Header Files\DB\Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Cache\CacheControl.h">
+      <Filter>Header Files\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Cache\DataCache.h">
+      <Filter>Header Files\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Cache\LFUCacheControl.h">
+      <Filter>Header Files\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Cache\LRUCacheControl.h">
+      <Filter>Header Files\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Cache\MemoryCache.h">
+      <Filter>Header Files\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\crypt.h">
+      <Filter>Header Files\VFS\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\ioapi.h">
+      <Filter>Header Files\VFS\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\mztools.h">
+      <Filter>Header Files\VFS\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\unzip.h">
+      <Filter>Header Files\VFS\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\zconf.h">
+      <Filter>Header Files\VFS\minizip</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\minizip\zip.h">
+      <Filter>Header Files\VFS\minizip</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

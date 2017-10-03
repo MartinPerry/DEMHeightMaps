@@ -1,7 +1,8 @@
 #include "./Utils.h"
 
 
-double Utils::MapRange(double a1, double a2, double b1, double b2, double s)
+
+double Utils::MapRange(double fromMin, double fromMax, double toMin, double toMax, double s)
 {
-	return b1 + (s - a1) * (b2 - b1) / (a2 - a1);
+	return toMin + (s - fromMin) * (toMax - toMin) / (fromMax - fromMin);
 }

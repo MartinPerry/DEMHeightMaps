@@ -26,7 +26,8 @@ class Utils
 		template <typename T>
 		static void SaveToFile(std::vector<T> & data, const std::string & fileName);
 		
-		static double MapRange(double a1, double a2, double b1, double b2, double s);
+		static double MapRange(double fromMin, double fromMax, double toMin, double toMax, double s);
+
 };
 
 

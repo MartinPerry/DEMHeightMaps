@@ -9,7 +9,7 @@
 #include <GeoCoordinate.h>
 #include <MapProjection.h>
 
-
+#include "./Cache/DataCache.h"
 
 //=============================================================================================
 //=============================================================================================
@@ -91,12 +91,25 @@ typedef struct DEMTileInfo : TileInfo
 
 } DEMTileInfo;
 
+typedef struct TileRawData 
+{
+	int dataSize;
+	short * data;
+
+	~TileRawData()
+	{
+		delete[] data;
+		data = nullptr;
+		dataSize = 0;
+	}
+
+} TileRawData;
 
 class DEMTileData 
 {
 	public:
 					
-		DEMTileData() = default;		
+		DEMTileData(MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache);
 		DEMTileData(DEMTileData const&) = default;
 
 		DEMTileData& operator=(DEMTileData const&) = delete;		
@@ -104,22 +117,21 @@ class DEMTileData
 
 		DEMTileInfo * GetTileInfo();
 
-		void ReleaseData();
+		//void ReleaseData();
 		void LoadTileData();
 
 		void SetTileInfo(DEMTileInfo * info);
 		short GetValue(const IProjectionInfo::Coordinate & c);
 
-		friend class DEMData;
-
+		
 	private:
 		
 		
-
+		MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache;
 		DEMTileInfo * info;
 
-		short * data;
-		int dataSize;
+		TileRawData data;
+		
 
 		short GetValue(int index);
 

@@ -86,43 +86,33 @@ void LoadTmp()
 #define MERCATOR_MAX 85.051 //15
 #define MERCATOR_MIN -85.051 //15
 
-int main(int argc, char * argv[])
-{
-	//LoadTmp();
-	//return 0;
 
-	//std::shared_ptr<Equirectangular> proj = std::make_shared<Equirectangular>();
+void CreateBackgroundMaps()
+{
 	std::shared_ptr<Mercator> proj = std::make_shared<Mercator>();
 	
-	//DEMData dd("H://DEM_Voidfill//");	
-	//dd.ExportTileList("D://tiles.xml");
-
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
 	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
 	//DEMData dd({ "E://debug_uk//" }, proj);
 	//DEMData dd("E://DEM23//");
-	DEMData dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);	
+	DEMData<uint8_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
 	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" }, proj);
 	//DEMData dd({ "E://DEM_srtm//" }, proj);
 	dd.SetMinMaxElevation(0, 5000);
-
-	//VFS::GetInstance()->ExportStructure("d://vfs.txt");
-
-	//dd.ExportTileList("D://tile_list.xml");
 
 	int zoomLevel = 1;
 
 	double stepLat = (MERCATOR_MAX - MERCATOR_MIN) / (std::pow(2.0, zoomLevel));
 	double stepLon = (180.0 - -180.0) / (std::pow(2.0, zoomLevel));
 
-	auto tiles = dd.BuildTileMap(512, 512, 
+	auto tiles = dd.BuildTileMap(512, 512,
 	{ GeoCoordinate::deg(MERCATOR_MIN), GeoCoordinate::deg(-180.0) },
 	{ GeoCoordinate::deg(MERCATOR_MAX), GeoCoordinate::deg(180.0) },
 	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) });
 
 
 	//BorderRenderer br("I://hranice//", proj);
-	
+
 	for (auto & tDir : tiles)
 	{
 		for (auto & tFiles : tDir.second)
@@ -147,14 +137,257 @@ int main(int argc, char * argv[])
 			ss += "tile_";
 			ss += tDir.first;
 			ss += "_";
-			ss += tFiles.first;			
+			ss += tFiles.first;
 			ss += ".png";
 			uint32_t error = lodepng::encode(ss.c_str(), data, t.width, t.height, LodePNGColorType::LCT_GREY, 8);
 
 			SAFE_DELETE_ARRAY(data);
 		}
 	}
+}
 
+
+
+static std::string * uint16_tToString = new std::string[10000];
+static std::string * uint16_tToStringWithComa = new std::string[10000];
+static std::string * uint16_tToStringWithOpen = new std::string[10000];
+static std::string * uint16_tToStringWithCloseComa = new std::string[10000];
+
+
+std::string BuildDataAsStr(uint16_t * data, int w, int h)
+{
+	std::string newData = "";
+	newData.reserve(w * h * 5);
+
+	for (int y = 0; y < (h - 1); y++)
+	{
+		int yw = y * w;
+
+		newData += uint16_tToStringWithOpen[data[0 + yw]];
+		for (int x = 1; x < (w - 1); x++)
+		{			
+			newData += uint16_tToStringWithComa[data[x + yw]];
+		}		
+		newData += uint16_tToStringWithCloseComa[data[(w - 1) + yw]];		
+	}
+
+	newData += uint16_tToStringWithOpen[data[0 + (h - 1) * w]];
+	for (int x = 1; x < (w - 1); x++)
+	{		
+		newData += uint16_tToStringWithComa[data[x + (h - 1) * w]];
+	}	
+	newData += uint16_tToString[data[(w - 1) + (h - 1) * w]];
+	newData += "]";
+	
+	return newData;
+}
+
+int main(int argc, char * argv[])
+{
+	
+	for (uint16_t v = 0; v < 10000; v++)
+	{
+		uint16_tToString[v] = std::to_string(v);
+
+		uint16_tToStringWithComa[v] = std::to_string(v);
+		uint16_tToStringWithComa[v] += ", ";
+
+		uint16_tToStringWithCloseComa[v] = std::to_string(v);;
+		uint16_tToStringWithCloseComa[v] += "], ";
+
+		uint16_tToStringWithOpen[v] = "[";
+		uint16_tToStringWithOpen[v] += std::to_string(v);;
+		uint16_tToStringWithOpen[v] += ", ";
+	}
+
+	PostgreSQLWrapper psql = PostgreSQLWrapper();
+	if (psql.Connect("localhost", "postgres", "admin", "postgres", "5432") == false)
+	{
+		printf("failed to connect");
+		return 0;
+	}
+
+	SQLInsert insert("height_maps", { "raw_data"});
+
+
+
+
+	//LoadTmp();
+	//return 0;
+
+	std::shared_ptr<Equirectangular> proj = std::make_shared<Equirectangular>();
+	//std::shared_ptr<Mercator> proj = std::make_shared<Mercator>();
+	
+	//DEMData dd("H://DEM_Voidfill//");	
+	//dd.ExportTileList("D://tiles.xml");
+
+	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
+	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
+	//DEMData dd({ "E://debug_uk//" }, proj);
+	//DEMData dd("E://DEM23//");
+	//DEMData<uint16_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
+	DEMData<uint16_t> dd({ }, proj);
+	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" }, proj);
+	//DEMData dd({ "E://DEM_srtm//" }, proj);
+	dd.SetMinMaxElevation(0, 9000);
+
+	//VFS::GetInstance()->ExportStructure("d://vfs.txt");
+
+	//dd.ExportTileList("D://tile_list.xml");
+
+	//double stepLat = 80.0;
+	//double stepLon = 180.0;
+
+	/*
+	//test na oblast vody
+	auto tiles = dd.BuildTileMap(512, 512,
+	{ GeoCoordinate::deg(52), GeoCoordinate::deg(-40) },
+	{ GeoCoordinate::deg(56), GeoCoordinate::deg(-30) },
+	{ GeoCoordinate::deg(0.5), GeoCoordinate::deg(0.5) });
+
+	for (auto & tDir : tiles)
+	{
+		for (auto & tFiles : tDir.second)
+		{
+			auto & t = tFiles.second;
+			auto * data = dd.BuildMap(t.width, t.height, t.GetCorner(0), t.GetCorner(3), false);
+
+			if (data != nullptr)
+			{
+				printf("neni voda");
+			}
+
+			delete[] data;
+			//br.SetData(t.width, t.height, data);
+
+		}
+	}
+	*/
+
+
+
+
+	double stepLat = 0.0025 * 64;// (90.0 - -90.0) / (std::pow(2.0, zoomLevel));
+	double stepLon = 0.0025 * 64;// (180.0 - -180.0) / (std::pow(2.0, zoomLevel));
+
+
+	dd.ProcessTileMap(64, 64,
+	{ GeoCoordinate::deg(-90.0), GeoCoordinate::deg(-180.0) },
+	{ GeoCoordinate::deg(90.0), GeoCoordinate::deg(180.0) },
+	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) },
+		[&](TileInfo & t, int x, int y) {
+
+		double latDeg = t.GetCorner(0).lat.deg();
+		double lonDeg = t.GetCorner(0).lon.deg();
+
+		if (lonDeg == static_cast<double>(static_cast<int>(lonDeg)))
+		{
+			printf("Lon: %f Lat: %f\n", lonDeg, latDeg);
+		}
+		else if (latDeg == static_cast<double>(static_cast<int>(latDeg)))
+		{
+			printf("Lon: %f Lat: %f\n", lonDeg, latDeg);
+		}
+
+		uint16_t * data = dd.BuildMap(t.width, t.height, t.GetCorner(0), t.GetCorner(3), false);
+		//uint16_t * data = new uint16_t[t.width * t.height];
+		//memset(data, 0, t.width * t.height * sizeof(uint16_t));
+
+		if (data == nullptr)
+		{
+			//tile is empty
+			//probably "water only" tile
+			return;
+		}
+
+		auto tmp = t.GetCorner(2);
+		double upperLeftX = tmp.lon.deg();
+		double upperLeftY = tmp.lat.deg();
+			
+		std::string strData = BuildDataAsStr(data, t.width, t.height);
+
+		std::string q = "INSERT INTO height_maps (raw_data) "
+			"VALUES ("
+			"ST_SetValues("
+				"ST_AddBand("
+					"ST_MakeEmptyRaster(";
+						q += std::to_string(t.width);
+						q += ", ";
+						q += std::to_string(t.height);
+						q += ", ";
+						q += std::to_string(upperLeftX);
+						q += ", ";
+						q += std::to_string(upperLeftY);
+						q += ", ";
+						q += std::to_string(t.pixelStepLon.deg());
+						q += ", ";
+						q += std::to_string(-t.pixelStepLat.deg());
+						q += ", 0, 0, 4326"
+					"), "
+					"1, '16BUI', 0, 0"
+				"), "
+				"1, 1, 1, ARRAY[";
+					q += strData;
+				q += "]::double  precision[][]"
+			") "
+			")";
+
+			psql.RunQuery(q);
+
+			/*
+			
+			MyStringAnsi upperLeftCorner = " ST_UpperLeftX(raw_data) = ";
+			upperLeftCorner += upperLeftX;
+			upperLeftCorner += " AND ST_UpperLeftY(raw_data) = ";
+			upperLeftCorner += upperLeftY;
+				
+			PostGisRaster::RasterGeoInfo geoInfo;
+			geoInfo.skewX = 0;
+			geoInfo.skewY = 0;
+			geoInfo.scaleX = t.pixelStepLon.deg();
+			geoInfo.scaleY = -t.pixelStepLat.deg();
+			geoInfo.ipX = upperLeftX;
+			geoInfo.ipY = upperLeftY;
+			
+			PostGisRaster * raster = PostGisRaster::CreateEmpty(t.width, t.height, 4326, geoInfo, "raw_data", &insert, &psql);
+			raster->AddEmptyBand(PostGisRaster::PT_16BUI);						
+			raster->SetData(strData, t.width, t.height, 1);
+			*/
+
+			SAFE_DELETE_ARRAY(data);
+		}
+	);
+
+	delete[] uint16_tToString;
+	delete[] uint16_tToStringWithComa;
+	delete[] uint16_tToStringWithCloseComa;
+	delete[] uint16_tToStringWithOpen;
+
+
+	/*
+	
+	
+	WITH ref As
+	(
+		SELECT (ST_SetSRID(ST_Point(lon, lat), 4326)) AS pt
+	) SELECT 
+    lon, lat, 
+    ST_Value(raw_data, 1, ref.pt) AS val
+  FROM
+    height_maps 	
+  CROSS JOIN ref
+  WHERE ST_Intersects(height_maps.raw_data, ref.pt)
+
+	
+	*/
+
+	/*
+	SELECT (md).* FROM 
+(
+SELECT ST_MetaData(raw_data) As md FROM height_maps
+) as foo
+	*/
+	
 	return 0;
 	
 	int w = 360 * 10;
@@ -172,6 +405,7 @@ int main(int argc, char * argv[])
 	//uint8_t * data = dd.BuildMap(w, h, { 31.0_deg, -27.0_deg }, { 58.0_deg, 47.0_deg}, true);
 	//unsigned char * data = dd.BuildMap(w, h, {51.15_deg, 12.007_deg} {48.0_deg, 18.9999_deg}, true);
 
+	/*
 	uint8_t * data = dd.BuildMap(w, h, minc, maxc, true);
 	Utils::SaveToFile<uint8_t>(data, w * h, "D://rrr.raw");
 	lodepng::encode("D://rrr.png", data, w, h, LodePNGColorType::LCT_GREY, 8);
@@ -197,7 +431,7 @@ int main(int argc, char * argv[])
 	
 	
 	uint32_t error = lodepng::encode("D://rrr_border.png", data, w, h, LodePNGColorType::LCT_GREY, 8);
-
+	*/
 
 	return 0;
 }

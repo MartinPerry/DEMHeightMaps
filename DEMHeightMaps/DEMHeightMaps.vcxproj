@@ -78,8 +78,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>C:\Program Files %28x86%29\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Program Files %28x86%29\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>C:\Program Files\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -88,6 +88,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <IncludePath>C:\Program Files\PostgreSQL\9.5\include;$(IncludePath)</IncludePath>
+    <LibraryPath>C:\Program Files\PostgreSQL\9.5\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -104,6 +106,7 @@
       <SubSystem>Console</SubSystem>
       <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -119,6 +122,7 @@
       <SubSystem>Console</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
       <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>zlibstat_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -141,6 +145,7 @@
       <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -152,12 +157,15 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <LargeAddressAware>true</LargeAddressAware>
+      <AdditionalDependencies>zlibstat_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -190,6 +198,10 @@
     <ClCompile Include="TinyXML\tinyxmlerror.cpp" />
     <ClCompile Include="TinyXML\tinyxmlparser.cpp" />
     <ClCompile Include="Utils\Utils.cpp" />
+    <ClCompile Include="VFS\minizip\ioapi.c" />
+    <ClCompile Include="VFS\minizip\mztools.c" />
+    <ClCompile Include="VFS\minizip\unzip.c" />
+    <ClCompile Include="VFS\minizip\zip.c" />
     <ClCompile Include="VFS\VFS.cpp" />
     <ClCompile Include="VFS\VFSTree.cpp" />
     <ClCompile Include="VFS\ZipWrapper.cpp" />
@@ -201,6 +213,11 @@
     <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h" />
     <ClInclude Include="..\MapProjections\MapProjections\Projections.h" />
     <ClInclude Include="BorderRenderer.h" />
+    <ClInclude Include="Cache\CacheControl.h" />
+    <ClInclude Include="Cache\DataCache.h" />
+    <ClInclude Include="Cache\LFUCacheControl.h" />
+    <ClInclude Include="Cache\LRUCacheControl.h" />
+    <ClInclude Include="Cache\MemoryCache.h" />
     <ClInclude Include="DB\Database\IDatabaseWrapper.h" />
     <ClInclude Include="DB\Database\PostGis.h" />
     <ClInclude Include="DB\Database\PostGisRaster.h" />
@@ -225,6 +242,12 @@
     <ClInclude Include="TinyXML\tinystr.h" />
     <ClInclude Include="TinyXML\tinyxml.h" />
     <ClInclude Include="Utils\Utils.h" />
+    <ClInclude Include="VFS\minizip\crypt.h" />
+    <ClInclude Include="VFS\minizip\ioapi.h" />
+    <ClInclude Include="VFS\minizip\mztools.h" />
+    <ClInclude Include="VFS\minizip\unzip.h" />
+    <ClInclude Include="VFS\minizip\zconf.h" />
+    <ClInclude Include="VFS\minizip\zip.h" />
     <ClInclude Include="VFS\VFS.h" />
     <ClInclude Include="VFS\VFSUtils.h" />
     <ClInclude Include="VFS\win_dirent.h" />

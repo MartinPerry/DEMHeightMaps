@@ -3,14 +3,15 @@
 
 #define BUFFER_SIZE 100
 
-#ifdef _MSC_VER
 
-	#if defined(DEBUG)|defined(_DEBUG)
-		#pragma comment(lib, "zlibstat_debug.lib")		
-	#else
-		#pragma comment(lib, "zlibstat_release.lib")		
-	#endif	
+#ifdef _MSC_VER
+#ifdef _WIN64
+#pragma comment(lib, "zlibstat_x64.lib")				
+#else
+#pragma comment(lib, "zlibstat.lib")			
 #endif
+#endif
+
 
 #include <string>
 #include <time.h>

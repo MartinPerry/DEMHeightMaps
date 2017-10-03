@@ -7,23 +7,29 @@
 #include "./Utils/Utils.h"
 
 
+DEMTileData::DEMTileData(MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache)
+	: cache(cache)
+{
+}
+
 DEMTileData::~DEMTileData()
 {
-	this->ReleaseData();
+	
 }
 
+/*
 void DEMTileData::ReleaseData()
 {
-
-	delete[](this->data);
-	this->data = nullptr;
-	this->dataSize = 0;
+	delete[](this->data.data);
+	this->data.data = nullptr;
+	this->data.dataSize = 0;
 }
+*/
 
 void DEMTileData::SetTileInfo(DEMTileInfo * info)
 {
 	this->info = info;
-	this->data = nullptr;
+	this->data.data = nullptr;
 }
 
 DEMTileInfo * DEMTileData::GetTileInfo()
@@ -83,16 +89,16 @@ short DEMTileData::GetValue(int index)
 {
 	short value = 0;
 
-	if (this->data != nullptr)
+	if (this->data.data != nullptr)
 	{
-		value = this->data[index];
+		value = this->data.data[index];
 	}
 	else
 	{
 		if (VFS::GetInstance()->IsFileInArchive(this->info->fileName))
 		{
 			this->LoadTileData();
-			value = this->data[index];
+			value = this->data.data[index];
 		}
 		else 
 		{
@@ -113,13 +119,23 @@ short DEMTileData::GetValue(int index)
 void DEMTileData::LoadTileData()
 {
 
-	if (this->data != nullptr)
+	if (this->data.data != nullptr)
 	{
 		return;
 	}
 	
-	char * tileData = VFS::GetInstance()->GetFileContent(this->info->fileName, &dataSize);
-	this->data = reinterpret_cast<short *>(tileData);	
+	auto tmp = this->cache->Get(this->info->fileName);
+	if (tmp != nullptr)
+	{
+		this->data = *tmp;
+		return;
+	}
+
+
+	char * tileData = VFS::GetInstance()->GetFileContent(this->info->fileName, &data.dataSize);
 	
+	this->data.data = reinterpret_cast<short *>(tileData);	
+	
+	this->cache->Insert(this->info->fileName, this->data, data.dataSize);
 }
 

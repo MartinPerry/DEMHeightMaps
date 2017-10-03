@@ -2,7 +2,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <minizip/unzip.h>
+#include "./minizip/unzip.h"
 #include <fstream>
 #include <string>
 #include <iostream>
