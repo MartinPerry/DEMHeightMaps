@@ -98,9 +98,9 @@ typedef struct TileRawData
 
 	~TileRawData()
 	{
-		delete[] data;
-		data = nullptr;
-		dataSize = 0;
+		//delete[] data;
+		//data = nullptr;
+		//dataSize = 0;
 	}
 
 } TileRawData;

@@ -25,6 +25,7 @@ DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, std::share
 	this->minHeight = 0;
 	this->maxHeight = 9000;
 	this->elevMapping = false;
+	this->verbose = false;
 
 	VFS::Initialize(DEBUG_MODE);
 	for (auto d : dirs)
@@ -33,7 +34,7 @@ DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, std::share
 	}
 
 	this->tilesCache = new MemoryCache<std::string, TileRawData, LRUControl<std::string>>(
-		CACHE_SIZE_GB(20), LRUControl<std::string>()
+		CACHE_SIZE_GB(16), LRUControl<std::string>()
 		);
 
 
@@ -50,6 +51,7 @@ DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, const std:
 	this->minHeight = 0;
 	this->maxHeight = 9000;
 	this->elevMapping = false;
+	this->verbose = false;
 
 	
 	VFS::Initialize(DEBUG_MODE);
@@ -59,7 +61,7 @@ DEMData<HeightType>::DEMData(std::initializer_list<std::string> dirs, const std:
 	}
 	
 	this->tilesCache = new MemoryCache<std::string, TileRawData, LRUControl<std::string>>(
-		CACHE_SIZE_GB(20), LRUControl<std::string>()
+		CACHE_SIZE_GB(16), LRUControl<std::string>()
 		);
 
 	this->ImportTileList(tilesInfoXML);
@@ -82,6 +84,12 @@ void DEMData<HeightType>::SetMinMaxElevation(double minElev, double maxElev)
 {
 	this->minHeight = minElev;
 	this->maxHeight = maxElev;
+}
+
+template <typename HeightType>
+void DEMData<HeightType>::SetVerboseEnabled(bool val)
+{
+	this->verbose = val;
 }
 
 //=======================================================================================
@@ -315,7 +323,7 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData<HeightT
 
 	std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> res;
 
-	this->ProcessTileMap(tileW, tileH, min, max, tileStep, [&](TileInfo & ti, int x, int y) {
+	this->ProcessTileMap(tileW, tileH, min, max, tileStep, [&](TileInfo & ti, size_t x, size_t y) {
 		res[x][y] = ti;
 	});
 	
@@ -326,7 +334,7 @@ template <typename HeightType>
 void DEMData<HeightType>::ProcessTileMap(int tileW, int tileH,
 	const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max,
 	const IProjectionInfo::Coordinate & tileStep,
-	std::function<void(TileInfo & ti, int x, int y)> tileCallback)
+	std::function<void(TileInfo & ti, size_t x, size_t y)> tileCallback)
 {
 	size_t y = 0; //file
 	double tileStepLat = tileStep.lat.rad();
@@ -397,8 +405,10 @@ void DEMData<HeightType>::ProcessTileMap(int tileW, int tileH,
 template <typename HeightType>
 HeightType * DEMData<HeightType>::BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
 {
-	printf("BUILD map Lon: %f %f / Lat: %f %f\n", min.lon.deg(), max.lon.deg(), min.lat.deg(), max.lat.deg());
-
+	if (this->verbose)
+	{
+		printf("BUILD map Lon: %f %f / Lat: %f %f\n", min.lon.deg(), max.lon.deg(), min.lat.deg(), max.lat.deg());
+	}
 		
 	this->projection->SetFrame(min, max, w, h, keepAR);
 		
@@ -438,7 +448,10 @@ HeightType * DEMData<HeightType>::BuildMap(int w, int h, const IProjectionInfo::
 		return nullptr;
 	}
 
-	printf("Tiles count: %i \n", tilePixels.size());
+	if (this->verbose)
+	{
+		printf("Tiles count: %zu \n", tilePixels.size());
+	}
 
 	HeightType * heightMap = new HeightType[w * h];
 	memset(heightMap, 0, w * h * sizeof(HeightType));
@@ -465,17 +478,18 @@ HeightType * DEMData<HeightType>::BuildMap(int w, int h, const IProjectionInfo::
 
 		//td.ReleaseData();	
 
-#ifdef _DEBUG
-		double progress = ((static_cast<double>(count) / tilePixels.size()) * 100.0);
-		if (static_cast<int>(progress) != lastProgress)
+		if (this->verbose)
 		{
-			printf("\rProgress: %i %%", static_cast<int>(progress));
-			fflush(stdout);
-			
-			lastProgress = static_cast<int>(progress);
+			double progress = ((static_cast<double>(count) / tilePixels.size()) * 100.0);
+			if (static_cast<int>(progress) != lastProgress)
+			{
+				printf("\rProgress: %i %%", static_cast<int>(progress));
+				fflush(stdout);
+
+				lastProgress = static_cast<int>(progress);
+			}
+			count++;
 		}
-		count++;
-#endif
 	}
 	
 
@@ -496,8 +510,11 @@ HeightType * DEMData<HeightType>::BuildMap(int w, int h, const IProjectionInfo::
 		}
 	}
 	*/
-	printf("\nMap builded\n");
 
+	if (this->verbose)
+	{
+		printf("\nMap builded\n");
+	}
 	return heightMap;
 }
 
@@ -555,7 +572,7 @@ Neighbors DEMData<HeightType>::GetCoordinateNeighbors(const IProjectionInfo::Coo
 }
 
 template <typename HeightType>
-short DEMData<HeightType>::GetHeight(DEMTileData & td, int index)
+short DEMData<HeightType>::GetHeight(DEMTileData & td, size_t index)
 {
 	double value = 0;
 

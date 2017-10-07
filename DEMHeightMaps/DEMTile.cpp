@@ -10,6 +10,8 @@
 DEMTileData::DEMTileData(MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache)
 	: cache(cache)
 {
+	this->data.data = nullptr;
+	this->data.dataSize = 0;
 }
 
 DEMTileData::~DEMTileData()
@@ -30,6 +32,7 @@ void DEMTileData::SetTileInfo(DEMTileInfo * info)
 {
 	this->info = info;
 	this->data.data = nullptr;
+	this->data.dataSize = 0;
 }
 
 DEMTileInfo * DEMTileData::GetTileInfo()
@@ -136,6 +139,18 @@ void DEMTileData::LoadTileData()
 	
 	this->data.data = reinterpret_cast<short *>(tileData);	
 	
-	this->cache->Insert(this->info->fileName, this->data, data.dataSize);
+	auto info = this->cache->Insert(this->info->fileName, this->data, data.dataSize);
+	if (info.itemRemoved)
+	{
+		for (auto tmp : info.removedValue)
+		{
+			if (tmp.data == this->data.data)
+			{
+				printf("Problem... releasing currently loaded data\n");
+			}
+			delete[] tmp.data;
+		}
+	}
+
 }
 

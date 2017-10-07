@@ -225,11 +225,12 @@ int main(int argc, char * argv[])
 	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
 	//DEMData dd({ "E://debug_uk//" }, proj);
 	//DEMData dd("E://DEM23//");
-	//DEMData<uint16_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
-	DEMData<uint16_t> dd({ }, proj);
+	DEMData<uint16_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
+	//DEMData<uint16_t> dd({ }, proj);
 	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" }, proj);
 	//DEMData dd({ "E://DEM_srtm//" }, proj);
-	dd.SetMinMaxElevation(0, 9000);
+
+	//dd.SetMinMaxElevation(0, 9000);
 
 	//VFS::GetInstance()->ExportStructure("d://vfs.txt");
 
@@ -275,7 +276,7 @@ int main(int argc, char * argv[])
 	{ GeoCoordinate::deg(-90.0), GeoCoordinate::deg(-180.0) },
 	{ GeoCoordinate::deg(90.0), GeoCoordinate::deg(180.0) },
 	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) },
-		[&](TileInfo & t, int x, int y) {
+		[&](TileInfo & t, size_t x, size_t y) {
 
 		double latDeg = t.GetCorner(0).lat.deg();
 		double lonDeg = t.GetCorner(0).lon.deg();
@@ -333,26 +334,6 @@ int main(int argc, char * argv[])
 			")";
 
 			psql.RunQuery(q);
-
-			/*
-			
-			MyStringAnsi upperLeftCorner = " ST_UpperLeftX(raw_data) = ";
-			upperLeftCorner += upperLeftX;
-			upperLeftCorner += " AND ST_UpperLeftY(raw_data) = ";
-			upperLeftCorner += upperLeftY;
-				
-			PostGisRaster::RasterGeoInfo geoInfo;
-			geoInfo.skewX = 0;
-			geoInfo.skewY = 0;
-			geoInfo.scaleX = t.pixelStepLon.deg();
-			geoInfo.scaleY = -t.pixelStepLat.deg();
-			geoInfo.ipX = upperLeftX;
-			geoInfo.ipY = upperLeftY;
-			
-			PostGisRaster * raster = PostGisRaster::CreateEmpty(t.width, t.height, 4326, geoInfo, "raw_data", &insert, &psql);
-			raster->AddEmptyBand(PostGisRaster::PT_16BUI);						
-			raster->SetData(strData, t.width, t.height, 1);
-			*/
 
 			SAFE_DELETE_ARRAY(data);
 		}

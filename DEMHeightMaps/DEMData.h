@@ -30,6 +30,7 @@ class DEMData
 		DEMData(std::initializer_list<std::string> dirs, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection);
 		~DEMData();
 		
+		void SetVerboseEnabled(bool val);
 		void SetElevationMappingEnabled(bool val);
 		void SetMinMaxElevation(double minElev, double maxElev);
 
@@ -43,7 +44,7 @@ class DEMData
 		void ProcessTileMap(int tileW, int tileH,
 			const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max,
 			const IProjectionInfo::Coordinate & tileStep,
-			std::function<void(TileInfo & ti, int, int y)> tileCallback);
+			std::function<void(TileInfo & ti, size_t, size_t y)> tileCallback);
 
 		HeightType * BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR);
 		
@@ -55,6 +56,8 @@ class DEMData
 
 		const int TILE_SIZE_3 = 1201;
 		const int TILE_SIZE_1 = 3601;
+
+		bool verbose;
 
 		bool elevMapping;
 		double minHeight;
@@ -81,7 +84,7 @@ class DEMData
 		DEMTileInfo * GetTile(const IProjectionInfo::Coordinate & c);
 		void AddTile(const DEMTileInfo & ti);
 
-		short GetHeight(DEMTileData & td, int index);
+		short GetHeight(DEMTileData & td, size_t index);
 		
 };
 

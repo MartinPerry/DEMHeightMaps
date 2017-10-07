@@ -10,9 +10,9 @@
 //================= Included ===========================
 //======================================================
 
-#define CACHE_SIZE_GB(x) (1024 * 1024 * 1024 * x)
-#define CACHE_SIZE_MB(x) (1024 * 1024 * x)
-#define CACHE_SIZE_KB(x) (1024 * x)
+#define CACHE_SIZE_GB(x) (1024 * 1024 * 1024 * size_t(x))
+#define CACHE_SIZE_MB(x) (1024 * 1024 * size_t(x))
+#define CACHE_SIZE_KB(x) (1024 * size_t(x))
 
 
 //======================================================
