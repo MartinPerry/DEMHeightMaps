@@ -7,7 +7,7 @@
 #include "./Utils/Utils.h"
 
 
-DEMTileData::DEMTileData(MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache)
+DEMTileData::DEMTileData(MemoryCache<MyStringAnsi, TileRawData, LRUControl<MyStringAnsi>> * cache)
 	: cache(cache)
 {
 	this->data.data = nullptr;
@@ -43,7 +43,7 @@ DEMTileInfo * DEMTileData::GetTileInfo()
 
 //Data are overlaping from neighboring tiles at the borders
 //https://www.orekit.org/forge/projects/rugged/wiki/DirectLocationWithDEM
-short DEMTileData::GetValue(const IProjectionInfo::Coordinate & c)
+short DEMTileData::GetValue(const Projections::Coordinate & c)
 {		
 	double difLon = c.lon.rad() - this->info->minLon.rad();
 	double difLat = c.lat.rad() - this->info->minLat.rad();
@@ -97,22 +97,26 @@ short DEMTileData::GetValue(int index)
 		value = this->data.data[index];
 	}
 	else
-	{
-		if (VFS::GetInstance()->IsFileInArchive(this->info->fileName))
+	{		
+		if (this->info->isArchived)
 		{
 			this->LoadTileData();
 			value = this->data.data[index];
 		}
 		else 
-		{
-			VFS_FILE * vf = VFS::GetInstance()->OpenFile(this->info->fileName);
-					
-			FILE * f = static_cast<FILE *>(vf->filePtr);
-
+		{			
+			FILE * f = VFS::GetInstance()->GetRawFile(this->info->filePath);
+			if (f == nullptr)
+			{
+				return 0;
+			}
+			
 			fseek(f, index * sizeof(short), SEEK_SET);
 			fread(&value, 1, sizeof(short), f);
 
-			VFS::GetInstance()->CloseFile(vf);
+			fclose(f);
+
+			//VFS::GetInstance()->(vf);
 		}
 	}
 
@@ -135,7 +139,7 @@ void DEMTileData::LoadTileData()
 	}
 
 
-	char * tileData = VFS::GetInstance()->GetFileContent(this->info->fileName, &data.dataSize);
+	char * tileData = VFS::GetInstance()->GetFileContent(this->info->filePath, &data.dataSize);
 	
 	this->data.data = reinterpret_cast<short *>(tileData);	
 	

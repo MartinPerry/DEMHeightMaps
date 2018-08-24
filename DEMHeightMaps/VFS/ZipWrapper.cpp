@@ -1,7 +1,9 @@
 #include "./ZipWrapper.h"
 
+//#include "../../Macros.h"
 #include <stdio.h>
 #include <stdlib.h>
+
 #include "./minizip/zip.h"
 #include "./minizip/unzip.h"
 
@@ -35,7 +37,7 @@ tm GetActualTime()
 //=========================== Zip File == ====================================
 //============================================================================
 
-ZipFile::ZipFile(const std::string & fileName)
+ZipFile::ZipFile(const MyStringAnsi & fileName)
 {
 	this->fileName = fileName;
 }
@@ -47,7 +49,7 @@ Returns:
 
 Get fileName of archive
 -------------------------------------------------------------*/
-const std::string & ZipFile::GetFileName()
+const MyStringAnsi & ZipFile::GetFileName()
 {
 	return this->fileName;
 }
@@ -62,7 +64,7 @@ Returns:
 
 Add new file to archive.
 -------------------------------------------------------------*/
-bool ZipFile::AddFile(const std::string & fileName, const std::string & fileNameInZip)
+bool ZipFile::AddFile(const MyStringAnsi & fileName, const MyStringAnsi & fileNameInZip)
 {
 	zip_fileinfo zi;
 	memset(&zi, 0, sizeof(zip_fileinfo));
@@ -78,24 +80,24 @@ bool ZipFile::AddFile(const std::string & fileName, const std::string & fileName
 
 	zipOpenNewFileInZip(this->zipPtr, fileNameInZip.c_str(), &zi, NULL, 0, NULL, 0, NULL, 0, 0);
 
-	FILE * fileInZip = NULL;
+	FILE * fileInZip = nullptr;
 	my_fopen(&fileInZip, fileName.c_str(), "rb");
-	if (fileInZip == NULL)
+	if (fileInZip == nullptr)
 	{	
 		 return false;
 	}
 
 	int err;
 
-	char * buf = (char *)malloc(BUFFER_SIZE * sizeof(char));
+	char * buf = (char *)malloc(ZIP_BUFFER_SIZE * sizeof(char));
 	int size_read = 0;
 	int fileSize = 0;
 	do
     {
 		err = ZIP_OK;
-        size_read = (int)fread(buf, 1, BUFFER_SIZE, fileInZip);
+        size_read = (int)fread(buf, 1, ZIP_BUFFER_SIZE, fileInZip);
 		fileSize += size_read;
-		if (size_read < BUFFER_SIZE)
+		if (size_read < ZIP_BUFFER_SIZE)
 		{
 			if (feof(fileInZip) == 0)
 			{				
@@ -132,7 +134,7 @@ bool ZipFile::AddFile(const std::string & fileName, const std::string & fileName
 
 }
 
-bool ZipFile::AddFile(const void * buffer, unsigned int bufferSize, const std::string & fileNameInZip)
+bool ZipFile::AddFile(const void * buffer, unsigned int bufferSize, const MyStringAnsi & fileNameInZip)
 {
 	zip_fileinfo zi;
 	memset(&zi, 0, sizeof(zip_fileinfo));
@@ -168,7 +170,7 @@ bool ZipFile::AddFile(const void * buffer, unsigned int bufferSize, const std::s
 
 }
 
-unsigned int ZipFile::GetFileSize(const std::string & fileNameInZip)
+unsigned int ZipFile::GetFileSize(const MyStringAnsi & fileNameInZip)
 {	
 	FileInfo fi = this->files[fileNameInZip];
 	return fi.size;
@@ -177,7 +179,7 @@ unsigned int ZipFile::GetFileSize(const std::string & fileNameInZip)
 unsigned int ZipFile::GetArchiveFilesSize()
 {
 	unsigned int size = 0;
-	std::unordered_map<std::string, FileInfo>::iterator i;
+	std::unordered_map<MyStringAnsi, FileInfo>::iterator i;
 	for(i = this->files.begin() ; i != this->files.end(); ++i )	
 	{
 		size += i->second.size;		
@@ -197,9 +199,9 @@ Parameters:
 Open and extract file from archive. File is extracted to 
 buffer. Buffer must be freed extrenally by "free(buffer)"
 -------------------------------------------------------------*/
-void ZipFile::OpenFile(const std::string & fileNameInZip, void ** buffer, int * bufferSize)
+void ZipFile::OpenFile(const MyStringAnsi & fileNameInZip, void ** buffer, int * bufferSize)
 {
-	*buffer = NULL;
+	*buffer = nullptr;
 
 	if (this->writeMode)
 	{		
@@ -216,7 +218,7 @@ void ZipFile::OpenFile(const std::string & fileNameInZip, void ** buffer, int * 
 	}
 
 	FileInfo fi = this->files[fileNameInZip];
-	if (bufferSize != NULL)
+	if (bufferSize != nullptr)
 	{ 
 		*bufferSize = fi.size;
 	}
@@ -233,7 +235,7 @@ void ZipFile::OpenFile(const std::string & fileNameInZip, void ** buffer, int * 
 	unzCloseCurrentFile(this->zipPtr);
 }
 
-bool ZipFile::FileExist(const std::string & fileNameInZip)
+bool ZipFile::FileExist(const MyStringAnsi & fileNameInZip)
 {
 	return !(this->files.find(fileNameInZip) == this->files.end()); // true == does not exist 
 }
@@ -269,7 +271,7 @@ void ZipFile::LoadContent()
 		{
 			FileInfo fi;
 			fi.fileName = fileNameInArchive;
-			fi.size = static_cast<uint32_t>(info.uncompressed_size);
+			fi.size = static_cast<size_t>(info.uncompressed_size);
 
 			this->files[fileNameInArchive] = fi;	
 		}
@@ -312,14 +314,14 @@ Close opened arhive
 -------------------------------------------------------------*/
 void ZipWrapper::CloseArchive(ZipFile * zf)
 {
-	if (zf == NULL)
+	if (zf == nullptr)
 	{
 		return;
 	}
 
 	if (zf->writeMode)
 	{
-		zipClose(zf->zipPtr, NULL);
+		zipClose(zf->zipPtr, nullptr);
 	}
 	else 
 	{
@@ -327,7 +329,7 @@ void ZipWrapper::CloseArchive(ZipFile * zf)
 	}
 
 	delete zf;
-	zf = NULL;
+	zf = nullptr;
 }
 
 /*-----------------------------------------------------------
@@ -344,17 +346,17 @@ READ - open only for reading (uses unzip.h)
 WRITE - create new archive (old one with same name will be overwritten) (uses zip.h)
 WRITE_APPEND - add files to existing archive (uses zip.h)
 -------------------------------------------------------------*/
-ZipFile * ZipWrapper::OpenArchive(const std::string & fileName, OpenMode mode)
+ZipFile * ZipWrapper::OpenArchive(const MyStringAnsi & fileName, OpenMode mode)
 {
 	ZipFile * archFile = new ZipFile(fileName);
 
-	if (archFile == NULL)
+	if (archFile == nullptr)
 	{
 
-		return NULL;
+		return nullptr;
 	}
 
-	void * zf = NULL;
+	void * zf = nullptr;
 	if (mode == READ)
 	{
 		zf = unzOpen(fileName.c_str());
@@ -367,7 +369,7 @@ ZipFile * ZipWrapper::OpenArchive(const std::string & fileName, OpenMode mode)
 			status = APPEND_STATUS_ADDINZIP;
 		}
 
-		zf = zipOpen(fileName.c_str(), status);	
+		zf = zipOpen(fileName.c_str(), status);
 	}
 	archFile->zipPtr = zf;	
 	archFile->writeMode = true;

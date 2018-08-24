@@ -13,7 +13,8 @@
 #include <MapProjection.h>
 #include <GeoCoordinate.h>
 
-#include "./DB/Strings/MyString.h"
+#include "./Strings/MyString.h"
+
 #include "./DB/Database/PostgreSQLWrapper.h"
 #include "./DB/Database/SQLSelect.h"
 #include "./DB/Database/SQLInsert.h"
@@ -88,17 +89,22 @@ void LoadTmp()
 
 
 void CreateBackgroundMaps()
-{
-	std::shared_ptr<Mercator> proj = std::make_shared<Mercator>();
-	
+{	
 	//DEMData dd("H://DEM_Voidfill_debug//", "D://tiles_debug.xml");
-	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
-	//DEMData dd({ "E://debug_uk//" }, proj);
+	//DEMData dd({ "E://DEM_Voidfill_debug//" });
+	//DEMData dd({ "E://debug_uk//" });
 	//DEMData dd("E://DEM23//");
-	DEMData<uint8_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
-	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" }, proj);
-	//DEMData dd({ "E://DEM_srtm//" }, proj);
+	//DEMData<uint8_t, Projections::Mercator> dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" });
+	DEMData<uint8_t, Projections::Mercator> dd({ "E://DEM_Voidfill//", "E://DEM_srtm//" });
+	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" });
+	//DEMData dd({ "E://DEM_srtm//" });
+
+	dd.SetVerboseEnabled(true);
+
+	printf("Data inited\n");
+
 	dd.SetMinMaxElevation(0, 5000);
+	dd.SetElevationMappingEnabled(true);
 
 	int zoomLevel = 1;
 
@@ -109,9 +115,8 @@ void CreateBackgroundMaps()
 	{ GeoCoordinate::deg(MERCATOR_MIN), GeoCoordinate::deg(-180.0) },
 	{ GeoCoordinate::deg(MERCATOR_MAX), GeoCoordinate::deg(180.0) },
 	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) });
-
-
-	//BorderRenderer br("I://hranice//", proj);
+	
+	//BorderRenderer<Projections::Mercator> br("I://hranice//", dd.GetProjection());
 
 	for (auto & tDir : tiles)
 	{
@@ -184,7 +189,10 @@ std::string BuildDataAsStr(uint16_t * data, int w, int h)
 
 int main(int argc, char * argv[])
 {
-	
+	CreateBackgroundMaps();
+
+	return 0;
+
 	for (uint16_t v = 0; v < 10000; v++)
 	{
 		uint16_tToString[v] = std::to_string(v);
@@ -215,8 +223,6 @@ int main(int argc, char * argv[])
 	//LoadTmp();
 	//return 0;
 
-	std::shared_ptr<Equirectangular> proj = std::make_shared<Equirectangular>();
-	//std::shared_ptr<Mercator> proj = std::make_shared<Mercator>();
 	
 	//DEMData dd("H://DEM_Voidfill//");	
 	//dd.ExportTileList("D://tiles.xml");
@@ -225,7 +231,7 @@ int main(int argc, char * argv[])
 	//DEMData dd({ "E://DEM_Voidfill_debug//" }, proj);
 	//DEMData dd({ "E://debug_uk//" }, proj);
 	//DEMData dd("E://DEM23//");
-	DEMData<uint16_t> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" }, proj);
+	DEMData<uint16_t, Projections::Equirectangular> dd({ "D://Heightmaps//DEM_Voidfill//", "D://Heightmaps//DEM_srtm//" });
 	//DEMData<uint16_t> dd({ }, proj);
 	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" }, proj);
 	//DEMData dd({ "E://DEM_srtm//" }, proj);
@@ -271,9 +277,9 @@ int main(int argc, char * argv[])
 	double stepLat = 0.0025 * 64;// (90.0 - -90.0) / (std::pow(2.0, zoomLevel));
 	double stepLon = 0.0025 * 64;// (180.0 - -180.0) / (std::pow(2.0, zoomLevel));
 
-
+	
 	dd.ProcessTileMap(64, 64,
-	{ GeoCoordinate::deg(-90.0), GeoCoordinate::deg(-180.0) },
+	{ GeoCoordinate::deg(-90.0),  GeoCoordinate::deg(-180.0) },
 	{ GeoCoordinate::deg(90.0), GeoCoordinate::deg(180.0) },
 	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) },
 		[&](TileInfo & t, size_t x, size_t y) {
@@ -374,8 +380,8 @@ SELECT ST_MetaData(raw_data) As md FROM height_maps
 	int w = 360 * 10;
 	int h = 180 * 10;
 
-	IProjectionInfo::Coordinate minc = { -90.0_deg, -180.0_deg };
-	IProjectionInfo::Coordinate maxc = { 90.0_deg, 180.0_deg };
+	Projections::Coordinate minc = { -90.0_deg, -180.0_deg };
+	Projections::Coordinate maxc = { 90.0_deg, 180.0_deg };
 
 	//IProjectionInfo::Coordinate minc = { 35.0_deg, 42.0_deg };
 	//IProjectionInfo::Coordinate maxc = { 48.0_deg, 57.0_deg };

@@ -78,7 +78,9 @@
 
 #ifdef _WIN32
 
-#define WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
+	#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #include <string.h>
 #include <stdlib.h>
@@ -198,7 +200,7 @@ static void rewinddir(DIR* dirp);
  * internal working area that is used to retrieve individual directory
  * entries.
  */
-static DIR *opendir(const char *dirname)
+static inline DIR *opendir(const char *dirname)
 {
    DIR *dirp;
 
@@ -267,7 +269,7 @@ static DIR *opendir(const char *dirname)
  * sub-directories, pseudo-directories "." and "..", but also volume labels,
  * hidden files and system files may be returned.
  */
-static struct dirent *readdir(DIR *dirp)
+static inline struct dirent *readdir(DIR *dirp)
 {
    DWORD attr;
    if (dirp == NULL) {
@@ -320,7 +322,7 @@ static struct dirent *readdir(DIR *dirp)
  * directory stream invalidates the DIR structure as well as any previously
  * read directory entry.
  */
-static int closedir(DIR *dirp)
+static inline int closedir(DIR *dirp)
 {
    if (dirp == NULL) {
       /* invalid directory stream */

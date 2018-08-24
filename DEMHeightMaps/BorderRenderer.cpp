@@ -6,22 +6,25 @@
 #include <ProjectionRenderer.h>
 
 #include "./VFS/win_dirent.h"
-#include "./VFS/VFSUtils.h"
+//#include "./VFS/VFSUtils.h"
 #include "./Utils/Utils.h"
 
 
-BorderRenderer::BorderRenderer(const std::string & borderDir, std::shared_ptr<IProjectionInfo> projection)
+template <typename ProjType>
+BorderRenderer<ProjType>::BorderRenderer(const MyStringAnsi & borderDir, std::shared_ptr<ProjType> projection)
 {
 	this->projection = projection;
 	this->LoadBorderDirectory(borderDir);
 	this->realHeightMap = NULL;
 }
 
-BorderRenderer::~BorderRenderer()
+template <typename ProjType>
+BorderRenderer<ProjType>::~BorderRenderer()
 {
 }
 
-void BorderRenderer::SetData(int w, int h, uint8_t * data)
+template <typename ProjType>
+void BorderRenderer<ProjType>::SetData(int w, int h, uint8_t * data)
 {
 	this->w = w;
 	this->h = h;
@@ -36,7 +39,8 @@ Parameters:
 
 Load border data from given directory.
 -------------------------------------------------------------*/
-void BorderRenderer::LoadBorderDirectory(const std::string & path)
+template <typename ProjType>
+void BorderRenderer<ProjType>::LoadBorderDirectory(const MyStringAnsi & path)
 {
 	printf("---- Loading border directory ----\n");
 
@@ -50,9 +54,9 @@ void BorderRenderer::LoadBorderDirectory(const std::string & path)
 	}
 
 
-	std::string newDirName;
-	std::string fullPath;
-	std::string key;
+	MyStringAnsi newDirName;
+	MyStringAnsi fullPath;
+	MyStringAnsi key;
 
 	/* print all the files and directories within directory */
 	while ((ent = readdir(dir)) != NULL)
@@ -68,10 +72,10 @@ void BorderRenderer::LoadBorderDirectory(const std::string & path)
 
 			//file
 			fullPath = dir->patt;
-			fullPath = fullPath.substr(0, fullPath.length() - 1);
+			fullPath = fullPath.SubString(0, fullPath.length() - 1);
 			fullPath += ent->d_name;
 
-			if (fullPath.find(".csv") != std::string::npos)
+			if (fullPath.Find(".csv") != MyStringAnsi::npos)
 			{
 				this->ProcessBorderCSV(fullPath);
 			}
@@ -92,23 +96,24 @@ void BorderRenderer::LoadBorderDirectory(const std::string & path)
 	closedir(dir);
 }
 
-void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
+template <typename ProjType>
+void BorderRenderer<ProjType>::ProcessBorderCSV(const MyStringAnsi & borderFileName)
 {
-	std::string content = loadFromFile(borderFileName);
+	MyStringAnsi content = MyStringAnsi::LoadFromFile(borderFileName.c_str());
 
 	//content = content.SubString(0, 2000);
 
-	std::vector<std::string> lines = split(content, '\n');
+	std::vector<MyStringAnsi> lines = content.Split('\n');
 
-	std::string keyName;
-	std::vector<IProjectionInfo::Coordinate> * border = NULL;
+	MyStringAnsi keyName;
+	std::vector<Projections::Coordinate> * border = NULL;
 
 	int tmp = 0;
 	int USE_EVERY_NTH_POINT = 1;
 
 	for (size_t i = 0; i < lines.size(); i++)
 	{
-		std::vector<std::string> line = split(lines[i], ';');
+		std::vector<MyStringAnsi> line = lines[i].Split(';');
 		if (line.size() <= 2)
 		{
 			continue;
@@ -120,7 +125,7 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 		}
 		else
 		{
-			if (keyName.find("Czech") != std::string::npos)
+			if (keyName.Find("Czech") != MyStringAnsi::npos)
 			{
 				USE_EVERY_NTH_POINT = 1;
 			}
@@ -133,13 +138,13 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 			{
 				
 
-				std::string key = keyName;
+				MyStringAnsi key = keyName;
 				key += "_";
 				key += line[3];
 
 				border = &this->borders[key];
 				
-				IProjectionInfo::Coordinate point;
+				Projections::Coordinate point;
 				point.lon = GeoCoordinate::deg(atof(line[0].c_str()));
 				point.lat = GeoCoordinate::deg(atof(line[1].c_str()));
 
@@ -155,16 +160,16 @@ void BorderRenderer::ProcessBorderCSV(const std::string & borderFileName)
 }
 
 
-
-void BorderRenderer::DrawBorders(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR)
+template <typename ProjType>
+void BorderRenderer<ProjType>::DrawBorders(const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR)
 {	
 
 	
 	projection->SetFrame(min, max, w, h, keepAR);
 
 
-	ProjectionRenderer render(projection.get());
-	render.SetRawDataTarget(realHeightMap);
+	Projections::ProjectionRenderer render(projection.get());
+	render.SetRawDataTarget(realHeightMap, Projections::ProjectionRenderer::GREY);
 	
 	for (auto it : this->borders)
 	{
@@ -191,3 +196,5 @@ void BorderRenderer::DrawBorders(const IProjectionInfo::Coordinate & min, const 
 	}	
 }
 
+template class BorderRenderer<Projections::Mercator>;
+template class BorderRenderer<Projections::Equirectangular>;

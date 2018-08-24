@@ -12,41 +12,44 @@
 
 #include "./DEMTile.h"
 #include "./Cache/MemoryCache.h"
+#include "./Strings/MyString.h"
 
 typedef std::unordered_map<DEMTileInfo, DEMTileData, hashFunc, equalsFunc> DemTileMap;
 
 typedef struct Neighbors
 {
-	std::vector<IProjectionInfo::Coordinate> neighborCoord;
+	std::vector<Projections::Coordinate> neighborCoord;
 	std::unordered_map<DEMTileInfo *, std::vector<size_t>> neighborsCache;
 } Neighbors;
 
-template <typename HeightType>
+template <typename HeightType, typename ProjType>
 class DEMData 
 {
 	public:
 
-		DEMData(std::initializer_list<std::string> dirs, std::shared_ptr<IProjectionInfo> projection);
-		DEMData(std::initializer_list<std::string> dirs, const std::string & tilesInfoXML, std::shared_ptr<IProjectionInfo> projection);
+		DEMData(std::initializer_list<MyStringAnsi> dirs);
+		DEMData(std::initializer_list<MyStringAnsi> dirs, const MyStringAnsi & tilesInfoXML);
 		~DEMData();
 		
+		std::shared_ptr<ProjType> GetProjection() const;
+
 		void SetVerboseEnabled(bool val);
 		void SetElevationMappingEnabled(bool val);
 		void SetMinMaxElevation(double minElev, double maxElev);
 
-		void ExportTileList(const std::string & fileName);
+		void ExportTileList(const MyStringAnsi & fileName);
 		
 		std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> BuildTileMap(int tileW, int tileH,
-			const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, 
-			const IProjectionInfo::Coordinate & tileStep);
+			const Projections::Coordinate & min, const Projections::Coordinate & max,
+			const Projections::Coordinate & tileStep);
 
 
 		void ProcessTileMap(int tileW, int tileH,
-			const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max,
-			const IProjectionInfo::Coordinate & tileStep,
+			const Projections::Coordinate & min, const Projections::Coordinate & max,
+			const Projections::Coordinate & tileStep,
 			std::function<void(TileInfo & ti, size_t, size_t y)> tileCallback);
 
-		HeightType * BuildMap(int w, int h, const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR);
+		HeightType * BuildMap(int w, int h, const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR);
 		
 
 	
@@ -65,28 +68,29 @@ class DEMData
 
 		//loaded tiles and projection info
 		std::vector<std::vector<DEMTileInfo>> tiles2Dmap; //[geo position][all tiles]
-		std::shared_ptr<IProjectionInfo> projection;
+		std::shared_ptr<ProjType> projection;
 
 		//main image tiles
-		std::vector<IProjectionInfo::Coordinate> coords; //[pixel] = coords		
+		std::vector<Projections::Coordinate> coords; //[pixel] = coords		
 		std::unordered_map<DEMTileInfo *, std::vector<size_t>> tilePixels; //[tile] = list of pixels
 
 	
-		MemoryCache<std::string, TileRawData, LRUControl<std::string>> * tilesCache;
+		MemoryCache<MyStringAnsi, TileRawData, LRUControl<MyStringAnsi>> * tilesCache;
 		
 		
 
 		void LoadTiles();
-		void ImportTileList(const std::string & fileName);
+		void ImportTileList(const MyStringAnsi & fileName);
 
-		Neighbors GetCoordinateNeighbors(const IProjectionInfo::Coordinate & c, DEMTileInfo * ti);
+		Neighbors GetCoordinateNeighbors(const Projections::Coordinate & c, DEMTileInfo * ti);
 
-		DEMTileInfo * GetTile(const IProjectionInfo::Coordinate & c);
+		DEMTileInfo * GetTile(const Projections::Coordinate & c);
 		void AddTile(const DEMTileInfo & ti);
 
 		short GetHeight(DEMTileData & td, size_t index);
 		
 };
+
 
 /*
 //http://ideone.com/Z7zldb

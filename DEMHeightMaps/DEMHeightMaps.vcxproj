@@ -97,7 +97,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;USE_VIRTUAL_INTERFACE;NOMINMAX;ZLIB_WINAPI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -115,7 +115,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_CONSOLE;USE_VIRTUAL_INTERFACE;NOMINMAX;ZLIB_WINAPI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
@@ -133,7 +133,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;USE_VIRTUAL_INTERFACE;NOMINMAX;ZLIB_WINAPI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <OpenMPSupport>
       </OpenMPSupport>
@@ -156,8 +156,8 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;USE_VIRTUAL_INTERFACE;NOMINMAX;ZLIB_WINAPI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -171,6 +171,7 @@
   <ItemGroup>
     <ClCompile Include="..\MapProjections\MapProjections\lodepng.cpp" />
     <ClCompile Include="..\MapProjections\MapProjections\MapProjection.cpp" />
+    <ClCompile Include="..\MapProjections\MapProjections\MapProjectionStructures.cpp" />
     <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp" />
     <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp" />
     <ClCompile Include="BorderRenderer.cpp" />
@@ -184,15 +185,13 @@
     <ClCompile Include="DB\Database\SQLPreparedStatement.cpp" />
     <ClCompile Include="DB\Database\SQLSelect.cpp" />
     <ClCompile Include="DB\Database\SQLUtils.cpp" />
-    <ClCompile Include="DB\Strings\MurmurHash3.cpp" />
-    <ClCompile Include="DB\Strings\MyConstString.cpp" />
-    <ClCompile Include="DB\Strings\MyStringAnsi.cpp" />
-    <ClCompile Include="DB\Strings\MyStringUtils.cpp" />
-    <ClCompile Include="DB\Strings\MyStringWide.cpp" />
     <ClCompile Include="DB\Utils\Logger.cpp" />
     <ClCompile Include="DEMData.cpp" />
     <ClCompile Include="DEMTile.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Strings\IStringAnsi.cpp" />
+    <ClCompile Include="Strings\MurmurHash3.cpp" />
+    <ClCompile Include="Strings\MyStringUtils.cpp" />
     <ClCompile Include="TinyXML\tinystr.cpp" />
     <ClCompile Include="TinyXML\tinyxml.cpp" />
     <ClCompile Include="TinyXML\tinyxmlerror.cpp" />
@@ -202,14 +201,19 @@
     <ClCompile Include="VFS\minizip\mztools.c" />
     <ClCompile Include="VFS\minizip\unzip.c" />
     <ClCompile Include="VFS\minizip\zip.c" />
+    <ClCompile Include="VFS\OSUtils.cpp" />
     <ClCompile Include="VFS\VFS.cpp" />
     <ClCompile Include="VFS\VFSTree.cpp" />
+    <ClCompile Include="VFS\WinUtils.cpp" />
     <ClCompile Include="VFS\ZipWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\IProjectionInfo.h" />
     <ClInclude Include="..\MapProjections\MapProjections\lodepng.h" />
     <ClInclude Include="..\MapProjections\MapProjections\MapProjection.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionStructures.h" />
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionUtils.h" />
     <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h" />
     <ClInclude Include="..\MapProjections\MapProjections\Projections.h" />
     <ClInclude Include="BorderRenderer.h" />
@@ -227,18 +231,19 @@
     <ClInclude Include="DB\Database\SQLPreparedStatement.h" />
     <ClInclude Include="DB\Database\SQLSelect.h" />
     <ClInclude Include="DB\Database\SQLUtils.h" />
-    <ClInclude Include="DB\Strings\ID.h" />
-    <ClInclude Include="DB\Strings\md5.h" />
-    <ClInclude Include="DB\Strings\MurmurHash3.h" />
-    <ClInclude Include="DB\Strings\MyConstString.h" />
-    <ClInclude Include="DB\Strings\MyString.h" />
-    <ClInclude Include="DB\Strings\MyStringAnsi.h" />
-    <ClInclude Include="DB\Strings\MyStringMacros.h" />
-    <ClInclude Include="DB\Strings\MyStringUtils.h" />
-    <ClInclude Include="DB\Strings\MyStringWide.h" />
+    <ClInclude Include="DB\Macros.h" />
     <ClInclude Include="DB\Utils\Logger.h" />
     <ClInclude Include="DEMData.h" />
     <ClInclude Include="DEMTile.h" />
+    <ClInclude Include="Strings\IStringAnsi.h" />
+    <ClInclude Include="Strings\md5.h" />
+    <ClInclude Include="Strings\MurmurHash3.h" />
+    <ClInclude Include="Strings\MySmallStringAnsi.h" />
+    <ClInclude Include="Strings\MyString.h" />
+    <ClInclude Include="Strings\MyStringAnsi.h" />
+    <ClInclude Include="Strings\MyStringID.h" />
+    <ClInclude Include="Strings\MyStringMacros.h" />
+    <ClInclude Include="Strings\MyStringUtils.h" />
     <ClInclude Include="TinyXML\tinystr.h" />
     <ClInclude Include="TinyXML\tinyxml.h" />
     <ClInclude Include="Utils\Utils.h" />
@@ -248,14 +253,15 @@
     <ClInclude Include="VFS\minizip\unzip.h" />
     <ClInclude Include="VFS\minizip\zconf.h" />
     <ClInclude Include="VFS\minizip\zip.h" />
+    <ClInclude Include="VFS\OSUtils.h" />
     <ClInclude Include="VFS\VFS.h" />
-    <ClInclude Include="VFS\VFSUtils.h" />
+    <ClInclude Include="VFS\WinUtils.h" />
     <ClInclude Include="VFS\win_dirent.h" />
     <ClInclude Include="VFS\ZipWrapper.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="DB\Strings\ComparisonOperators.inl" />
-    <None Include="DB\Strings\MurmurHash3_constexpr.inl" />
+    <None Include="Strings\ComparisonOperators.inl" />
+    <None Include="Strings\MurmurHash3_constexpr.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

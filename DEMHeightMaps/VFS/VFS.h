@@ -2,19 +2,31 @@
 #define VFS_H
 
 #ifdef _MSC_VER
-#ifdef _WIN64
-#pragma comment(lib, "zlibstat_x64.lib")				
-#else
-#pragma comment(lib, "zlibstat.lib")			
-#endif
+	#if defined(DEBUG)|defined(_DEBUG)
+		#pragma comment(lib, "zlib.lib")		
+	#else
+		#pragma comment(lib, "zlib.lib")		
+	#endif	
 #endif
 
-
-#include "VFSUtils.h"
+#ifdef _MSC_VER	
+	#ifndef my_fopen 
+		#define my_fopen(a, b, c) fopen_s(a, b, c)	
+	#endif
+	#ifndef my_strdup
+		#define my_strdup(a) _strdup(a)
+	#endif
+#else	
+	#ifndef my_fopen 
+		#define my_fopen(a, b, c) (*a = fopen(b, c))
+	#endif
+	#ifndef my_strdup
+		#define my_strdup(a) strdup(a)
+	#endif
+#endif
 
 #include <vector>
-#include <map>
-
+#include "../Strings/MyString.h"
 
 /*====================================
 
@@ -22,27 +34,21 @@ VFS v. 1.0
 Martin Perry 
 8.7.2011 
 
+VFS v. 2.0
+Martin Perry
+5.6.2018
+
+
 =====================================*/
 
-struct Archived;
-struct VFS_FILE;
+struct VFS_DIR;
 
-/*-----------------------------------------------------------
-Struct:	Archived
+typedef enum VFS_ARCHIVE_TYPE {
+	NONE = 0,
+	ZIP = 1,
+	PACKED_FS = 2
 
-Info about file in archive
--------------------------------------------------------------*/
-typedef struct Archived 
-{
-	char * filePath;	//full path to archive file ... C:/DATA/archive.zip
-	void * ptr;				//pointer to the archived file
-	unsigned long offset;	//ofset within archived file to the actual file
-	int method;				//archivation method of file - unused, for future use
-	int compressedSize;		//compressed size
-
-	VFS_FILE * parent;
-
-} Archived;
+} VFS_ARCHIVE_TYPE;
 
 /*-----------------------------------------------------------
 Struct:	VFS_FILE
@@ -51,15 +57,18 @@ File within VFS
 -------------------------------------------------------------*/
 typedef struct VFS_FILE 
 {
-	char * filePath;	//full path to file in VFS .... C:/DATA/sample.txt (real file) or Sample/Sample.txt (file in archive)
-	char * fullName;	//full name ... sample.txt
-	char * name;		//name only ... sample
-	char * ext;		// extension only ... txt
-	Archived * archiveInfo; //archived info, if file not in archive - NULL
-	void * filePtr;			//pointer to the opened file
-
-	int fileSize;			//raw size of file
+	const char * name;	//file name with extension (eg. Sample.txt)
+						//must be released with free()
 	
+	VFS_DIR * dir;		//pointer to parent directory
+		
+	uint16_t archiveFileIndex; //index to archive file path
+	uint8_t archiveType;
+	unsigned long archiveOffset; //ofset within archived file to the actual file
+
+	void * filePtr;			//pointer to the opened file in OS file system or inside archive
+
+	size_t fileSize;			//raw size of file
 
 } VFS_FILE;
 
@@ -74,21 +83,10 @@ typedef struct VFS_DIR
 	std::vector<VFS_DIR *> dirs;	//all sub dirs
 	std::vector<VFS_FILE *> files;	//all files within dir
 
-	char * name;				//directory name ... SAMPLE
-	int numFiles;					//total number of files in directory and all its subdirs
-	int numDirs;					//total number of dirs and its subdirs
-
+	const char * name;				//directory name (eg. SAMPLE)
+									//must be released with free()	
 } VFS_DIR;
 
-
-/*-----------------------------------------------------------
-Typedef: VFS_MODE
-
-Mode of VFS
-If mode is DEBUG_MODE, than VFS can also access files 
-within real FS (eg: C:/Program Files/...)
--------------------------------------------------------------*/
-typedef enum VFS_MODE {DEBUG_MODE = 0, RELEASE_MODE = 1} VFS_MODE;
 
 /*-----------------------------------------------------------
 Class:	VFSTree
@@ -110,27 +108,28 @@ class VFSTree
 
 		void Release();
 		
-		bool AddFile(std::string &filePath);
-		bool AddFile(std::string &filePath, VFS_FILE * file);
-		VFS_FILE * GetFile(const std::string &path);
-		VFS_DIR * GetDir(const std::string &path);
+		//bool AddFile(const MyStringAnsi &filePath);
+		bool AddFile(MyStringAnsi & vfsPath, VFS_FILE * file); 
+		VFS_FILE * GetFile(const MyStringAnsi &path) const;
+		VFS_DIR * GetDir(const MyStringAnsi &path) const;
+		
+		MyStringAnsi GetFilePath(VFS_FILE * f) const;
 
-		std::vector<VFS_FILE *> GetAllFiles(bool withFilesFromArchives);
+		std::vector<VFS_FILE *> GetAllFiles(bool withFilesFromArchives) const;
 
-		void PrintStructure();
+		void PrintStructure() const;
 
-	private:
-		std::map<std::string, VFS_FILE *> cachedFiles;
+	private:		
 		VFS_DIR * root;
 
-		VFS_DIR * AddDir(VFS_DIR * node, const std::string &dirName);
-		VFS_DIR * GetDir(VFS_DIR * node, const std::string &dirName);
+		VFS_DIR * AddDir(VFS_DIR * node, const char * dirName);
+		VFS_DIR * GetDir(VFS_DIR * node, const char * dirName) const;
 
 		void Release(VFS_DIR * node);
 		void ReleaseFile(VFS_FILE * file);
 
-		void GetAllFiles(VFS_DIR * node, int depth, bool withFilesFromArchives, std::vector<VFS_FILE *> & output);
-		void PrintStructure(VFS_DIR * node, int depth);
+		void GetAllFiles(VFS_DIR * node, int depth, bool withFilesFromArchives, std::vector<VFS_FILE *> & output) const;
+		void PrintStructure(VFS_DIR * node, int depth) const;
 };
 
 /*-----------------------------------------------------------
@@ -141,58 +140,86 @@ VFS main class
 class VFS
 {
 	public:
-		static void Initialize(const std::string &dir, VFS_MODE mode = RELEASE_MODE);				//init from default dir
-		static void Initialize(VFS_MODE mode = RELEASE_MODE);				//init from default dir
+		static void InitializeEmpty();
+		static void InitializeRaw(const MyStringAnsi &dir);
+		static void InitializeFull(const MyStringAnsi &dir);				//init from default dir
 		
 		static void Destroy();
 		static VFS * GetInstance();
 
-		bool IsFileInArchive(const std::string & fileName);
-		bool ExistFile(const std::string & fileName);
+		bool ExistFile(const MyStringAnsi & fileName) const;
+		bool IsFileInArchive(const MyStringAnsi & fileName) const;
 
-		void ExportStructure(const std::string & fileName);
-		//void ImportStructure();
+		std::vector<VFS_FILE *> GetAllFiles() const;
+		std::vector<VFS_FILE *> GetMainFiles() const;
+		void PrintStructure() const;
+		void SaveDirStructure(const MyStringAnsi & fileName) const;
+		const char * GetFileName(VFS_FILE * f) const;
+		const char * GetFileExt(VFS_FILE * f) const;
+		MyStringAnsi GetFilePath(VFS_FILE * f) const;
 
-		std::vector<VFS_FILE *> GetAllFiles();
-		std::vector<VFS_FILE *> GetMainFiles();
-		void PrintStructure();
-		void SetWorkingDir(const std::string & dir);
-		const std::string & GetWorkingDir();
+		void AddDirectory(const MyStringAnsi &dir);	//add root directory to the file-system
+		void AddHighPriorityRawDirectory(const MyStringAnsi &dir);	//add root directory to the file-system - data are not loaded from this
+		void AddRawDirectory(const MyStringAnsi &dir, int priority = -1);	//add root directory to the file-system - data are not loaded from this
 
-		void AddDirectory(const std::string &dir);	//add root directory to the file-system
+		MyStringAnsi GetRawFileFullPath(const MyStringAnsi &path) const;
+
+		FILE * GetRawFile(const MyStringAnsi &path) const;
 		
-		VFS_FILE * OpenFile(const std::string &path);
-		char * GetFileContent(const std::string &path, int * fileSize);
-		std::string GetFileString(const std::string &path);
-		void CloseFile(VFS_FILE * file);
+		char * GetFileContent(const MyStringAnsi &path, size_t * fileSize) const;
+		MyStringAnsi GetFileString(const MyStringAnsi &path) const;
+		void CloseFile(VFS_FILE * file) const;
 
-		void RefreshFile(const std::string &path);
+		bool CopySingleFile(const MyStringAnsi & src, const MyStringAnsi & dest) const;
+		int CopyAllFilesFromDir(const MyStringAnsi & dirPath, const MyStringAnsi & destPath) const;
+		void PackStructure(const MyStringAnsi & outputFile) const;
 
-		int Read(void * buffer, size_t elementSize, size_t bytesCount, VFS_FILE * file);
-		int ReadString(char * buffer, size_t bytesCount, VFS_FILE * file);
-		int ReadEntireFile(void * buffer, VFS_FILE * file);
+		void RefreshFile(const MyStringAnsi &path);
+
+		int Read(void * buffer, size_t elementSize, size_t bytesCount, VFS_FILE * file) const;
+		int ReadString(char * buffer, size_t bytesCount, VFS_FILE * file) const;
+		int ReadEntireFile(void ** buffer, VFS_FILE * file) const;
 
 	private:
 		static VFS * single;
 		VFSTree * fileSystem;		
-		std::vector<VFS_FILE *> debugModeFiles;
-		VFS_MODE mode;
-		std::string workingDir;
+		//std::vector<VFS_FILE *> debugModeFiles;
+		
+		std::vector<MyStringAnsi> initDirs; //store all directories that are used as VFS init dir
+										    //VFS can be created from multiple dirs and one VFS is created
+											//so you can obtain file within VFS
+
+		std::vector<MyStringAnsi> archiveFiles; //store all "archive" full OS file paths that are used in VFS
 
 		
+	
 
 		VFS();
 		~VFS();
 
 		void Release();
 
-		void AddDirectory(const std::string &dir, const std::string &startDirName);
-		void ScanArchive(const std::string &fileName);
-		bool FileInfo(const std::string &fileName, bool &archived, int &fileSize);
-		void CreateVFSFile(std::string vfsPath, std::string fullPath);
-		VFS_FILE * CreateDebugFile(std::string fullPath);
+		void SaveDirStructure(VFS_DIR * d, const MyStringAnsi & dirPath, MyStringAnsi & data) const;
+
+		int CopyAllFilesFromDir(VFS_DIR * d, const MyStringAnsi & destPath) const;
+		int CopyAllFilesFromRawDir(const MyStringAnsi & dirPath, const MyStringAnsi & destPath) const;
 		
+
+		VFS_FILE * OpenFile(const MyStringAnsi &path, VFS_FILE * temporary) const;
+
+		void AddDirectory(const MyStringAnsi &dir, const MyStringAnsi &startDirName);
 		
+		void ScanZipArchive(const MyStringAnsi & vfsPath, const MyStringAnsi &fullPath);
+		void ScanPackedFS(const MyStringAnsi & vfsPath, const MyStringAnsi &fullPath);
+		
+		bool FileInfo(const MyStringAnsi &fileName, VFS_ARCHIVE_TYPE &archiveType, size_t &fileSize) const;
+		void CreateVFSFile(MyStringAnsi & vfsPath, const MyStringAnsi & fullPath);
+		
+
+#ifdef __ANDROID_API__
+		void AddDirectoryAndroid(const MyStringAnsi &dir, const MyStringAnsi &startDirName);
+		bool CopySingleFileAndroid(const MyStringAnsi & src, const MyStringAnsi & dest) const;
+#endif
 };
 
 //void vfs_init(const char * dir); //init with default dir

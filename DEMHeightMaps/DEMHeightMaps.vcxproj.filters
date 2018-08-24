@@ -49,12 +49,6 @@
     <Filter Include="Header Files\DB\Utils">
       <UniqueIdentifier>{ddde7a4e-95bd-42ff-9596-ec79771ec50c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\DB\Strings">
-      <UniqueIdentifier>{72d4889d-1ab4-4b3f-83f6-fcb52ef7bef6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\DB\Strings">
-      <UniqueIdentifier>{cdd7e4b1-ddd4-47bf-b449-0ae0466ac817}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Source Files\DB\Database">
       <UniqueIdentifier>{482ab099-a1b2-4dbf-a6bd-887383b8e8e3}</UniqueIdentifier>
     </Filter>
@@ -70,15 +64,18 @@
     <Filter Include="Source Files\VFS\minizip">
       <UniqueIdentifier>{3ecfc625-bbe3-48af-9820-5d7a98a05211}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Strings">
+      <UniqueIdentifier>{5a729cd1-8b6c-4111-b7d0-a68424e32076}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Strings">
+      <UniqueIdentifier>{57201373-cccc-4c1d-a1de-93db0ad89d7b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="BorderRenderer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="DEMData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="DEMTile.cpp">
@@ -150,21 +147,6 @@
     <ClCompile Include="DB\Database\SQLUtils.cpp">
       <Filter>Source Files\DB\Database</Filter>
     </ClCompile>
-    <ClCompile Include="DB\Strings\MurmurHash3.cpp">
-      <Filter>Source Files\DB\Strings</Filter>
-    </ClCompile>
-    <ClCompile Include="DB\Strings\MyConstString.cpp">
-      <Filter>Source Files\DB\Strings</Filter>
-    </ClCompile>
-    <ClCompile Include="DB\Strings\MyStringAnsi.cpp">
-      <Filter>Source Files\DB\Strings</Filter>
-    </ClCompile>
-    <ClCompile Include="DB\Strings\MyStringUtils.cpp">
-      <Filter>Source Files\DB\Strings</Filter>
-    </ClCompile>
-    <ClCompile Include="DB\Strings\MyStringWide.cpp">
-      <Filter>Source Files\DB\Strings</Filter>
-    </ClCompile>
     <ClCompile Include="DB\Utils\Logger.cpp">
       <Filter>Source Files\DB\Utils</Filter>
     </ClCompile>
@@ -179,6 +161,27 @@
     </ClCompile>
     <ClCompile Include="VFS\minizip\zip.c">
       <Filter>Source Files\VFS\minizip</Filter>
+    </ClCompile>
+    <ClCompile Include="..\MapProjections\MapProjections\MapProjectionStructures.cpp">
+      <Filter>Source Files\MapProjections</Filter>
+    </ClCompile>
+    <ClCompile Include="DEMData.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\OSUtils.cpp">
+      <Filter>Source Files\VFS</Filter>
+    </ClCompile>
+    <ClCompile Include="VFS\WinUtils.cpp">
+      <Filter>Source Files\VFS</Filter>
+    </ClCompile>
+    <ClCompile Include="Strings\IStringAnsi.cpp">
+      <Filter>Source Files\Strings</Filter>
+    </ClCompile>
+    <ClCompile Include="Strings\MurmurHash3.cpp">
+      <Filter>Source Files\Strings</Filter>
+    </ClCompile>
+    <ClCompile Include="Strings\MyStringUtils.cpp">
+      <Filter>Source Files\Strings</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -207,9 +210,6 @@
       <Filter>Header Files\VFS</Filter>
     </ClInclude>
     <ClInclude Include="VFS\ZipWrapper.h">
-      <Filter>Header Files\VFS</Filter>
-    </ClInclude>
-    <ClInclude Include="VFS\VFSUtils.h">
       <Filter>Header Files\VFS</Filter>
     </ClInclude>
     <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h">
@@ -254,33 +254,6 @@
     <ClInclude Include="DB\Database\SQLUtils.h">
       <Filter>Header Files\DB\Database</Filter>
     </ClInclude>
-    <ClInclude Include="DB\Strings\ID.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\md5.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MurmurHash3.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyConstString.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyString.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyStringAnsi.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyStringMacros.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyStringUtils.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
-    <ClInclude Include="DB\Strings\MyStringWide.h">
-      <Filter>Header Files\DB\Strings</Filter>
-    </ClInclude>
     <ClInclude Include="DB\Utils\Logger.h">
       <Filter>Header Files\DB\Utils</Filter>
     </ClInclude>
@@ -317,13 +290,58 @@
     <ClInclude Include="VFS\minizip\zip.h">
       <Filter>Header Files\VFS\minizip</Filter>
     </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\IProjectionInfo.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionStructures.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionUtils.h">
+      <Filter>Header Files\MapProjections</Filter>
+    </ClInclude>
+    <ClInclude Include="DB\Macros.h">
+      <Filter>Header Files\DB</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\OSUtils.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="VFS\WinUtils.h">
+      <Filter>Header Files\VFS</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\IStringAnsi.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\md5.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MurmurHash3.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MySmallStringAnsi.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MyString.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MyStringAnsi.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MyStringID.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MyStringMacros.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
+    <ClInclude Include="Strings\MyStringUtils.h">
+      <Filter>Header Files\Strings</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DB\Strings\ComparisonOperators.inl">
-      <Filter>Header Files\DB\Strings</Filter>
+    <None Include="Strings\ComparisonOperators.inl">
+      <Filter>Header Files\Strings</Filter>
     </None>
-    <None Include="DB\Strings\MurmurHash3_constexpr.inl">
-      <Filter>Header Files\DB\Strings</Filter>
+    <None Include="Strings\MurmurHash3_constexpr.inl">
+      <Filter>Header Files\Strings</Filter>
     </None>
   </ItemGroup>
 </Project>

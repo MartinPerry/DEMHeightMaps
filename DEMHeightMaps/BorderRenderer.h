@@ -6,29 +6,31 @@
 
 #include <MapProjection.h>
 
+#include "./Strings/MyString.h"
 
+template <typename ProjType>
 class BorderRenderer
 {
 	public:
-		BorderRenderer(const std::string & borderDir, std::shared_ptr<IProjectionInfo> projection);
+		BorderRenderer(const MyStringAnsi & borderDir, std::shared_ptr<ProjType> projection);
 		~BorderRenderer();
 
 		void SetData(int w, int h, uint8_t * data);
 		
-		void DrawBorders(const IProjectionInfo::Coordinate & min, const IProjectionInfo::Coordinate & max, bool keepAR);
+		void DrawBorders(const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR);
 				
 
 	private:
-		std::shared_ptr<IProjectionInfo> projection;
-		std::unordered_map<std::string, std::vector<IProjectionInfo::Coordinate> > borders;
+		std::shared_ptr<ProjType> projection;
+		std::unordered_map<MyStringAnsi, std::vector<Projections::Coordinate> > borders;
 
 		int w;
 		int h;
 		uint8_t * realHeightMap;
 
 
-		void LoadBorderDirectory(const std::string & path);
-		void ProcessBorderCSV(const std::string & borderFileName);
+		void LoadBorderDirectory(const MyStringAnsi & path);
+		void ProcessBorderCSV(const MyStringAnsi & borderFileName);
 		
 };
 

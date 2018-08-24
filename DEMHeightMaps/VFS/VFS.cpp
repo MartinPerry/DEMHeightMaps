@@ -2,21 +2,27 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include "./minizip/unzip.h"
-#include <fstream>
-#include <string>
-#include <iostream>
+#include <errno.h>
+#include <unordered_map>
 
-#include "VFSUtils.h"
+#include "./minizip/unzip.h"
 
 #ifdef _WIN32
 	#include "./win_dirent.h"
 #else 
+    #include <sys/stat.h>
 	#include <dirent.h>
 #endif
 
+#include "./OSUtils.h"
+
+#ifdef __ANDROID_API__
+    #include <android/asset_manager.h>
+	#include "../../OS_Android/AndroidUtils.h"
+#endif
+
 //singleton instance of VFS
-VFS * VFS::single = NULL;
+VFS * VFS::single = nullptr;
 
 /*-----------------------------------------------------------
 Function:	ctor
@@ -26,7 +32,6 @@ VFS Singleton private ctor
 VFS::VFS()
 {
 	this->fileSystem = new VFSTree();	
-	this->workingDir = "";
 }
 
 /*-----------------------------------------------------------
@@ -45,30 +50,20 @@ Function:	Release
 Release VFS from memory
 -------------------------------------------------------------*/
 void VFS::Release()
-{
-	
-	std::vector<VFS_FILE *>::iterator jt;
-	for (jt = this->debugModeFiles.begin(); jt != this->debugModeFiles.end(); jt++)
-	{
-		if (*jt != NULL)
-		{	
-			if ((*jt)->archiveInfo != NULL) 
-			{
-				free((*jt)->archiveInfo->filePath);
-			}
-			delete (*jt)->archiveInfo;										
-			free((*jt)->ext);
-			free((*jt)->filePath);
-			free((*jt)->fullName);
-			free((*jt)->name);
-		}
-		delete (*jt);
-	}
-	this->debugModeFiles.clear();
-
+{		
 	delete this->fileSystem;
-	this->fileSystem = NULL;
-	
+	this->fileSystem = nullptr;	
+}
+
+void VFS::InitializeEmpty()
+{
+	single = new VFS();	
+}
+
+void VFS::InitializeRaw(const MyStringAnsi &dir)
+{
+	single = new VFS();	
+	single->initDirs.push_back(dir);
 }
 
 /*-----------------------------------------------------------
@@ -79,19 +74,11 @@ Parametrs:
 
 Create new VFS singleton class
 -------------------------------------------------------------*/
-void VFS::Initialize(const std::string &dir, VFS_MODE mode)
+void VFS::InitializeFull(const MyStringAnsi &dir)
 {
-	single = new VFS();	
-	single->AddDirectory(dir);	
-	single->mode = mode;
+	single = new VFS();
+	single->AddDirectory(dir);
 }
-
-void VFS::Initialize(VFS_MODE mode)
-{
-	single = new VFS();	
-	single->mode = mode;
-}
-
 
 /*-----------------------------------------------------------
 Function:	Destroy
@@ -101,7 +88,7 @@ Destroy VFS singleton
 void VFS::Destroy()
 {
 	delete single;
-	single = NULL;
+	single = nullptr;
 }
 
 /*-----------------------------------------------------------
@@ -118,36 +105,382 @@ VFS * VFS::GetInstance()
 }
 
 
-void VFS::PrintStructure()
+void VFS::PrintStructure() const
 {
 	this->fileSystem->PrintStructure();
 }
 
-std::vector<VFS_FILE *> VFS::GetAllFiles()
+std::vector<VFS_FILE *> VFS::GetAllFiles() const
 {
 	return this->fileSystem->GetAllFiles(true);
 }
 
-std::vector<VFS_FILE *> VFS::GetMainFiles()
+std::vector<VFS_FILE *> VFS::GetMainFiles() const
 {
 	return this->fileSystem->GetAllFiles(false);
 }
 
-void VFS::SetWorkingDir(const std::string & dir)
+
+const char * VFS::GetFileName(VFS_FILE * f) const
 {
-	this->workingDir = dir;
+	return f->name;
 }
 
-const std::string & VFS::GetWorkingDir()
+const char * VFS::GetFileExt(VFS_FILE * f) const
 {
-	return this->workingDir;
+	const char * n = f->name;
+	int i = strlen(n) - 1;
+	while ((i > 0) && (n[i] != '.') && (n[i] != '/') && (n[i] != '\\'))
+	{
+		i--;
+	}
+		
+	return n + i + 1;
 }
 
-bool VFS::ExistFile(const std::string & fileName)
+MyStringAnsi VFS::GetFilePath(VFS_FILE * f) const
+{
+	return this->fileSystem->GetFilePath(f);
+}
+
+
+
+void VFS::SaveDirStructure(const MyStringAnsi & fileName) const
+{
+	VFS_DIR * d = this->fileSystem->GetDir("");
+	MyStringAnsi content = "";
+	MyStringAnsi baseDirPath = d->name;
+	//baseDirPath += '/';
+	this->SaveDirStructure(d, baseDirPath, content);
+
+	content.SaveToFile(fileName.c_str());
+}
+
+void VFS::SaveDirStructure(VFS_DIR * d, const MyStringAnsi & dirPath, MyStringAnsi & data) const
+{
+	data += dirPath.SubString(0, dirPath.length() - 1); //we dont want "final" / to be appended
+	data += '\n';
+
+	for (auto sd : d->dirs)
+	{
+		MyStringAnsi tmpDirPath = dirPath;
+		tmpDirPath += sd->name;
+		tmpDirPath += '/';
+
+		this->SaveDirStructure(sd, tmpDirPath, data);
+	}
+
+	
+}
+
+
+
+
+bool VFS::CopySingleFile(const MyStringAnsi & src, const MyStringAnsi & dest) const
+{	
+	FILE * destFile = nullptr;
+	my_fopen(&destFile, dest.c_str(), "wb");
+	if (destFile == nullptr)
+	{
+		return false;
+	}
+
+	size_t bufSize = 0;
+	char * buf = this->GetFileContent(src, &bufSize);
+
+	fwrite(buf, sizeof(char), bufSize, destFile);
+	fclose(destFile);
+
+	delete[] buf;
+
+	return true;
+}
+
+#ifdef __ANDROID_API__
+bool VFS::CopySingleFileAndroid(const MyStringAnsi & src, const MyStringAnsi & dest) const
+{
+	FILE * srcFile = AndroidUtils::AssetFopen(src.c_str(), "rb");
+	if (srcFile == nullptr)
+	{
+		return false;
+	}
+
+
+	FILE * destFile = nullptr;
+	my_fopen(&destFile, dest.c_str(), "wb");
+	if (destFile == nullptr)
+	{
+		fclose(srcFile);
+		return false;
+	}
+
+	
+	fseek(srcFile, 0L, SEEK_END);
+	size_t fileSize = ftell(srcFile);
+	fseek(srcFile, 0L, SEEK_SET);
+
+	char * buffer = new char[fileSize];
+	fread(buffer, sizeof(char), fileSize, srcFile);
+	
+	fwrite(buffer, sizeof(char), fileSize, destFile);
+	
+	fclose(srcFile);
+	fclose(destFile);
+
+	SAFE_DELETE_ARRAY(buffer);
+
+	return true;
+}
+#endif
+
+//copy all files to destination dir
+int VFS::CopyAllFilesFromDir(const MyStringAnsi & dirPath, const MyStringAnsi & destPath) const
+{
+	int c = 0;
+	VFS_DIR * d = this->fileSystem->GetDir(dirPath);
+	
+	MyStringAnsi tmpDestPath = destPath;
+	if (tmpDestPath.GetLastChar() != '/')
+	{
+		tmpDestPath += '/';
+	}
+
+	if (d != nullptr)
+	{
+		return this->CopyAllFilesFromDir(d, tmpDestPath);
+	}
+	else
+	{
+		return this->CopyAllFilesFromRawDir(dirPath, tmpDestPath);
+	}
+}
+
+int VFS::CopyAllFilesFromDir(VFS_DIR * d, const MyStringAnsi & destPath) const
+{	
+	int c = 0;
+	
+	for (auto sd : d->dirs)
+	{
+		MyStringAnsi tmpDestPath = destPath;		
+		tmpDestPath += sd->name;
+		tmpDestPath += '/';
+
+		c += this->CopyAllFilesFromDir(sd, tmpDestPath);
+	}
+	
+	OSUtils::Instance()->CreatePath(destPath);
+	
+	VFS_FILE tmp;
+	for (auto ff : d->files)
+	{		
+		VFS_FILE * f = this->OpenFile(this->fileSystem->GetFilePath(ff), &tmp);
+		
+		void * buf = nullptr;
+		int bufSize = this->ReadEntireFile(&buf, f);
+		this->CloseFile(f);
+
+		MyStringAnsi finalDestPath = destPath;
+
+		if (f == &tmp)
+		{
+			//file is opened in RAW mode - name is same as from VFS file
+			finalDestPath += this->GetFileName(ff);
+		}
+		else
+		{
+			finalDestPath += this->GetFileName(f);
+		}
+		
+		FILE * destFile = nullptr;
+		my_fopen(&destFile, finalDestPath.c_str(), "wb");
+		if (destFile == nullptr)
+		{
+			free(buf);
+			continue;
+		}
+
+		fwrite(buf, sizeof(char), bufSize, destFile);
+		fclose(destFile);
+		free(buf);
+
+		c++;
+	}
+
+	return c;
+}
+
+int VFS::CopyAllFilesFromRawDir(const MyStringAnsi & dirPath, const MyStringAnsi & destPath) const
+{
+
+	if (DIR * dir = opendir(dirPath.c_str()))
+	{
+		struct dirent *ent;
+		
+		while ((ent = readdir(dir)) != nullptr)
+		{
+			if (ent->d_name[0] == '.')
+			{
+				continue;
+			}
+			if (ent->d_type == DT_REG)
+			{			
+				//printf ("%s (file)\n", ent->d_name);				
+				MyStringAnsi fullPathDest = destPath;
+#ifdef _MSC_VER
+				MyStringAnsi fullPathSrc = dir->patt; //full path using Windows dirent
+				fullPathSrc = fullPathSrc.SubString(0, fullPathSrc.length() - 1);
+#else
+				MyStringAnsi fullPathSrc = dirPath;
+				if (fullPathSrc.GetLastChar() != '/')
+				{
+					fullPathSrc += '/';
+				}
+
+				if (fullPathDest.GetLastChar() != '/')
+				{
+					fullPathDest += '/';
+				}
+#endif
+				fullPathSrc += ent->d_name;
+				fullPathDest += ent->d_name;
+
+				this->CopySingleFile(fullPathSrc, fullPathDest);							
+			}
+		}
+		closedir(dir);
+	}
+
+#ifdef __ANDROID_API__
+	if (AAssetDir* assetDir = AAssetManager_openDir(AndroidUtils::android_asset_manager, dirPath.c_str()))
+	{
+		const char* filename = (const char*)NULL;
+		while ((filename = AAssetDir_getNextFileName(assetDir)) != nullptr)
+		{
+			if (filename[0] == '.')
+			{
+				continue;
+			}
+
+			MyStringAnsi fullPathSrc = dirPath;
+			if (fullPathSrc.GetLastChar() != '/')
+			{
+				fullPathSrc += '/';
+			}
+
+			fullPathSrc += filename;
+
+			MyStringAnsi fullPathDest = destPath;
+			if (fullPathDest.GetLastChar() != '/')
+			{
+				fullPathDest += '/';
+			}
+			fullPathDest += filename;
+
+			if (this->CopySingleFileAndroid(fullPathSrc, fullPathDest) == false)
+			{
+				MY_LOG_ERROR("Copy %s to %s failed", fullPathSrc.c_str(), fullPathDest.c_str());
+			}
+		}
+		AAssetDir_close(assetDir);
+	}
+	
+#endif
+
+	return 0;
+}
+
+void VFS::PackStructure(const MyStringAnsi & outputFile) const
+{	
+	auto allFiles = this->GetAllFiles();
+
+
+	typedef struct FileInfo
+	{
+		size_t dataSize;
+		char * data;
+	} FileInfo;
+
+	std::unordered_map<MyStringAnsi, FileInfo> data;
+	for (auto vf : allFiles)
+	{
+		MyStringAnsi path = this->GetFilePath(vf);
+		FileInfo fi;
+		fi.data = this->GetFileContent(path, &fi.dataSize);
+
+		data[path] = fi;
+	}
+
+	//=====================================================
+
+	//file size - uint32 nebo uint16 podle max velikosti
+
+	uint32_t HEADER_SIZE = 0; //spocitat velikost "hlavicky"
+
+	HEADER_SIZE += 2 * sizeof(char); //header identification as "VD"
+
+	HEADER_SIZE += sizeof(uint32_t); //count of files
+
+
+	for (auto vf : allFiles)
+	{
+		MyStringAnsi tmp = this->GetFilePath(vf);
+
+		HEADER_SIZE += sizeof(uint32_t); //file size
+		HEADER_SIZE += sizeof(uint32_t); //data offset
+		HEADER_SIZE += sizeof(uint16_t); //file name length
+
+		HEADER_SIZE += tmp.length();
+		//HEADER_SIZE += sizeof(char); //ending block
+
+	}
+
+	//===================================================
+
+	FILE * f = nullptr;
+	my_fopen(&f, outputFile.c_str(), "wb");
+
+	//header
+	fwrite("V", sizeof(char), 1, f);
+	fwrite("D", sizeof(char), 1, f);
+
+	uint32_t s = static_cast<uint32_t>(allFiles.size());
+	fwrite(&s, sizeof(uint32_t), 1, f);
+
+	uint32_t packedOffset = HEADER_SIZE;
+	for (auto vf : allFiles)
+	{
+		MyStringAnsi tmp = this->GetFilePath(vf);
+
+		const FileInfo & fi = data[tmp];
+        uint32_t dataSize = static_cast<uint32_t>(fi.dataSize);
+		fwrite(&dataSize, sizeof(uint32_t), 1, f);
+		fwrite(&packedOffset, sizeof(uint32_t), 1, f);
+		packedOffset += fi.dataSize;
+
+		uint16_t fl = static_cast<uint16_t>(tmp.length());
+		fwrite(&fl, sizeof(uint16_t), 1, f);
+		fwrite(tmp.c_str(), sizeof(char), tmp.length(), f);
+	}
+
+	for (auto vf : allFiles)
+	{
+		MyStringAnsi tmp = this->GetFilePath(vf);
+
+		const FileInfo & fi = data[tmp];
+
+		fwrite(fi.data, sizeof(uint8_t), fi.dataSize, f);
+	}
+
+
+	fclose(f);
+}
+
+
+bool VFS::ExistFile(const MyStringAnsi & fileName) const
 {
 	VFS_FILE * file = this->fileSystem->GetFile(fileName);
 
-	if (file == NULL)
+	if (file == nullptr)
 	{
 		return false;
 	}
@@ -155,77 +488,222 @@ bool VFS::ExistFile(const std::string & fileName)
 	return true;
 }
 
-bool VFS::IsFileInArchive(const std::string & fileName)
+bool VFS::IsFileInArchive(const MyStringAnsi & fileName) const
 {
 	VFS_FILE * file = this->fileSystem->GetFile(fileName);
-	return file->archiveInfo != nullptr;
+	if (file == nullptr)
+	{
+		return false;
+	}
+
+	return file->archiveType != 0;
 }
 
-VFS_FILE * VFS::OpenFile(const std::string &path)
+FILE * VFS::GetRawFile(const MyStringAnsi &path) const
 {
-	std::string workingPath;
-	VFS_FILE * file = NULL;
-	
-	if (this->workingDir.length() == 0) 
-	{
-		file = this->fileSystem->GetFile(path);
-	}
-	else 
-	{
-		workingPath = this->workingDir;
-		if (path.c_str()[0] == '\\')
-		{
-			workingPath += path.substr(1, path.length() - 1);
-		}
-		else 
-		{
-			workingPath += path;
-		}
-		file = this->fileSystem->GetFile(workingPath);
-	}
+#ifdef __ANDROID_API__
+	std::vector<MyStringAnsi> paths; //(this->initDirs.size());
+#endif
 
-	if (file == NULL)
+	struct stat sb;
+
+	for (MyStringAnsi p : this->initDirs)
 	{
-		if (this->mode == RELEASE_MODE)
-		{
-			printf("[Error] File %s not found.\n", path.c_str());
-			printf("[Error] Opening files out of VFS is permited only in DEBUG_MODE.\n");
-			return NULL;
-		}
-		else if (this->mode == DEBUG_MODE)
-		{
-			if (this->workingDir.length() == 0) 
+		p += '/';
+		p += path;
+		
+		if (stat(p.c_str(), &sb) == 0)
+		{			
+			FILE * tmpFile = nullptr;
+			my_fopen(&tmpFile, p.c_str(), "rb");
+
+			if (tmpFile)
 			{
-				file = this->CreateDebugFile(path);
-			}
-			else 
-			{
-				file = this->CreateDebugFile(workingPath);
+				return tmpFile;
 			}
 		}
+
+#ifdef __ANDROID_API__
+		paths.push_back(p);
+#endif
 	}
+
+    //try open file directly
+    //this allows us to use full file paths within VFS
+    //like: C:/dir/other_dir/file.txt
+    if (stat(path.c_str(), &sb) == 0)
+    {
+        FILE * tmpFile = nullptr;
+        my_fopen(&tmpFile, path.c_str(), "rb");
+
+        if (tmpFile)
+        {
+            return tmpFile;
+        }
+    }
+#ifdef __ANDROID_API__
+    paths.push_back(path);
+#endif
+
 	
-	if (file == NULL)
+#ifdef __ANDROID_API__
+	for (auto p : paths)
 	{
-		return NULL;
+        FILE * tmpFile = AndroidUtils::AssetFopen(p.c_str(), "rb");
+        if (tmpFile)
+        {
+            return tmpFile;
+        }
 	}
-
-	if (file->archiveInfo == NULL)
-	{
-		FILE * tmpFile = NULL;
-		my_fopen(&tmpFile, file->filePath, "rb");
-		file->filePtr = tmpFile;
-	}
-	else 
-	{
-		file->archiveInfo->ptr = unzOpen(file->archiveInfo->filePath);
-
-		unzSetOffset(file->archiveInfo->ptr, file->archiveInfo->offset);
-		unzOpenCurrentFile(file->archiveInfo->ptr);
-	}
-
-	return file;
+#endif
+			
+	return nullptr;
 }
+
+MyStringAnsi VFS::GetRawFileFullPath(const MyStringAnsi &path) const
+{
+	for (auto p : this->initDirs)
+	{
+		p += '/';
+		p += path;
+
+		struct stat sb;
+		if (stat(p.c_str(), &sb) == 0)
+		{
+			return p;
+		}
+	}
+
+
+#ifdef __ANDROID_API__
+	for (auto p : this->initDirs)
+	{
+		p += '/';
+		p += path;
+
+		FILE * tmpFile = AndroidUtils::AssetFopen(p.c_str(), "rb");
+		if (tmpFile)
+		{
+			fclose(tmpFile);
+			return p;
+		}
+	}
+#endif
+	
+	return "";
+}
+
+
+VFS_FILE * VFS::OpenFile(const MyStringAnsi &path, VFS_FILE * temporary) const
+{
+	VFS_FILE * f = nullptr;
+	if (FILE * ff = this->GetRawFile(path))
+	{
+		//open file directly from OS file system
+
+		temporary->archiveFileIndex = std::numeric_limits<uint16_t>::max();
+		temporary->archiveType = VFS_ARCHIVE_TYPE::NONE;
+		temporary->filePtr = ff;
+
+		fseek(ff, 0L, SEEK_END);
+		temporary->fileSize = static_cast<size_t>(ftell(ff));
+		fseek(ff, 0L, SEEK_SET);
+		
+		//can directly return		
+		return temporary;
+	}
+	else
+	{
+		//failed to open directly from OS file system
+		//find file in VFS tree
+		//this is probably file in archive
+		f = this->fileSystem->GetFile(path);
+	}
+
+	if (f == nullptr)
+	{
+		//file not found
+		return nullptr;
+	}
+
+
+	if (f->archiveFileIndex == std::numeric_limits<uint16_t>::max())
+	{
+		printf("Problem - should not happed. This file should already be opened by OS file system");
+		/*
+		FILE * tmpFile = nullptr;
+		my_fopen(&tmpFile, f->filePath, "rb");
+#ifdef __ANDROID_API__
+        if (tmpFile == nullptr)
+		{
+			tmpFile = AndroidUtils::AssetFopen(f->filePath, "rb");
+		}
+#endif
+		f->filePtr = tmpFile;
+		*/
+	}
+	else 
+	{
+		//file is zipped archive
+
+		if (f->archiveType == VFS_ARCHIVE_TYPE::ZIP)
+		{
+			f->filePtr = unzOpen(this->archiveFiles[f->archiveFileIndex].c_str());
+
+			unzSetOffset(f->filePtr, f->archiveOffset);
+			int res = unzOpenCurrentFile(f->filePtr);
+			if (res != UNZ_OK)
+			{
+				printf("Failed to open zipped file: %i\n", res);
+				return nullptr;
+			}
+		}
+		else if (f->archiveType == VFS_ARCHIVE_TYPE::PACKED_FS)
+		{
+			FILE * tmpFile = nullptr;
+			my_fopen(&tmpFile, this->archiveFiles[f->archiveFileIndex].c_str(), "rb");
+
+			if (tmpFile == nullptr)
+			{
+				return nullptr;
+			}
+
+			fseek(tmpFile, f->archiveOffset, SEEK_SET);
+
+			f->filePtr = tmpFile;
+		}
+	}
+
+	return f;
+}
+
+void VFS::CloseFile(VFS_FILE * file) const
+{
+	if ((file == nullptr) && (file->filePtr == nullptr))
+	{
+		return;
+	}
+
+	if (file->archiveFileIndex == std::numeric_limits<uint16_t>::max())
+	{
+		fclose(static_cast<FILE *>(file->filePtr));
+	}
+	else 
+	{
+		if (file->archiveType == VFS_ARCHIVE_TYPE::ZIP)
+		{
+			unzCloseCurrentFile(file->filePtr);
+			unzClose(file->filePtr);
+		}
+		else if (file->archiveType == VFS_ARCHIVE_TYPE::PACKED_FS)
+		{
+			fclose(static_cast<FILE *>(file->filePtr));
+		}
+	}
+
+	file->filePtr = nullptr;
+}
+
 
 /*-----------------------------------------------------------
 Function:	GetFileContent
@@ -239,13 +717,16 @@ Open file and return openeded data in buffer
 buffer must be dealocated manually via delete[]
 If file open failed, returns NULL
 -------------------------------------------------------------*/
-char * VFS::GetFileContent(const std::string &path, int * fileSize)
+char * VFS::GetFileContent(const MyStringAnsi &path, size_t * fileSize) const
 {
-	VFS_FILE * f = this->OpenFile(path);
-	if (f == NULL)
+	VFS_FILE tmp;
+	VFS_FILE * f = this->OpenFile(path, &tmp);
+
+	if (f == nullptr)
 	{
-		return NULL;
+		return nullptr;
 	}
+	
 	char * buf = new char[f->fileSize];
 	this->Read(buf, sizeof(char), f->fileSize, f);
 	*fileSize = f->fileSize;
@@ -267,52 +748,59 @@ Returns:
 Open file and return openeded data as string
 If file open failed, returns ""
 -------------------------------------------------------------*/
-std::string VFS::GetFileString(const std::string &path)
+MyStringAnsi VFS::GetFileString(const MyStringAnsi &path) const
 {
-	VFS_FILE * f = this->OpenFile(path);
-	if (f == NULL)
+	VFS_FILE tmp;
+	VFS_FILE * f = this->OpenFile(path, &tmp);
+
+	if (f == nullptr)
 	{
 		return "";
 	}
-	char * buf = new char[f->fileSize + 1];
-	this->Read(buf, sizeof(char), f->fileSize, f);
-	buf[f->fileSize] = 0;
-	std::string str(buf);
-	
 
-	
-	delete[] buf;
+
+	char * buf = new char[f->fileSize + 1];
+	int ret = this->Read(buf, sizeof(char), f->fileSize, f);
+	buf[f->fileSize] = 0;
+	MyStringAnsi str = MyStringAnsi::CreateFromMoveMemory(buf, f->fileSize + 1, f->fileSize);
+
+	//MyStringAnsi str(buf);	
+	//delete[] buf;
 
 	this->CloseFile(f);
 
-	
 	return str;
 }
 
-int VFS::Read(void * buffer, size_t elementSize, size_t bytesCount, VFS_FILE * file)
-{	
-	if (file->archiveInfo == NULL) 
+int VFS::Read(void * buffer, size_t elementSize, size_t bytesCount, VFS_FILE * file) const
+{
+	if ((file == nullptr) && (file->filePtr == nullptr))
 	{
-		return fread(buffer, elementSize, bytesCount, static_cast<FILE *>(file->filePtr));
+		return -1;
 	}
-	return unzReadCurrentFile(file->archiveInfo->ptr, buffer, elementSize * bytesCount);
+
+	if (file->archiveType != VFS_ARCHIVE_TYPE::ZIP)
+	{
+		return static_cast<int>(fread(buffer, elementSize, bytesCount, static_cast<FILE *>(file->filePtr)));
+	}
+	return unzReadCurrentFile(file->filePtr, buffer, static_cast<unsigned>(elementSize * bytesCount));
 }
 
-int VFS::ReadString(char * buffer, size_t bytesCount, VFS_FILE * file)
+int VFS::ReadString(char * buffer, size_t bytesCount, VFS_FILE * file) const
 {
-	if (file == NULL)
+	if ((file == nullptr) && (file->filePtr == nullptr))
 	{
 		return -1;
 	}
 
 	int read = 0;
-	if (file->archiveInfo == NULL) 
+	if (file->archiveType != VFS_ARCHIVE_TYPE::ZIP)
 	{
-		read = fread(buffer, sizeof(char), bytesCount, static_cast<FILE *>(file->filePtr));
+		read = static_cast<int>(fread(buffer, sizeof(char), bytesCount, static_cast<FILE *>(file->filePtr)));
 	}
 	else 
 	{ 
-		read = unzReadCurrentFile(file->archiveInfo->ptr, buffer, bytesCount);
+		read = unzReadCurrentFile(file->filePtr, buffer, static_cast<unsigned>(bytesCount));
 	}
 
 	buffer[bytesCount] = 0;
@@ -330,409 +818,485 @@ Returns:
 Read entire file and fill it to buffer
 Buffer must be dealocated with free(buffer) !!!
 -------------------------------------------------------------*/
-int VFS::ReadEntireFile(void * buffer, VFS_FILE * file)
+int VFS::ReadEntireFile(void ** buffer, VFS_FILE * file) const
 {
-	buffer = malloc(file->fileSize);
+	*buffer = malloc(file->fileSize);
 
-	if (file->archiveInfo == NULL) 
+	if (file->archiveType != VFS_ARCHIVE_TYPE::ZIP)
 	{
-		return fread(buffer, 1, file->fileSize, static_cast<FILE *>(file->filePtr));
+		return static_cast<int>(fread(*buffer, 1, file->fileSize, static_cast<FILE *>(file->filePtr)));
 	}
-	
-	return unzReadCurrentFile(file->archiveInfo->ptr, buffer, file->fileSize);
+
+	return unzReadCurrentFile(file->filePtr, *buffer, static_cast<unsigned>(file->fileSize));
 }
 
-void VFS::CloseFile(VFS_FILE * file)
+
+void VFS::RefreshFile(const MyStringAnsi &path)
 {
-	
-	if (file == NULL)
+	VFS_FILE tmp;
+	if (VFS_FILE * f = this->OpenFile(path, &tmp))
 	{
-		return;
-	}
-
-	if (file->archiveInfo == NULL)
-	{
-		fclose(static_cast<FILE *>(file->filePtr));
-		file->filePtr = NULL;
-	}
-	else 
-	{
-		unzCloseCurrentFile(file->archiveInfo->ptr);
-		unzClose(file->archiveInfo->ptr);
-	}
-
-
-	if (this->mode == DEBUG_MODE)
-	{		
-		for (unsigned int i = 0; i < this->debugModeFiles.size(); i++)
+		if (f == &tmp)
 		{
-			if (this->debugModeFiles[i] == file)
-			{
-				delete[] this->debugModeFiles[i]->name;
-				delete[] this->debugModeFiles[i]->fullName;
-				delete[] this->debugModeFiles[i]->filePath;
-				delete[] this->debugModeFiles[i]->ext;
-				
-				
-				delete this->debugModeFiles[i];
-				this->debugModeFiles[i] = NULL;
-			}
-		}			
+			//do not refresh, file is not in VFS -
+			//opened file is "raw" file from OS file system
+			return;
+		}
+
+		if (f->archiveFileIndex == std::numeric_limits<uint16_t>::max())
+		{
+			VFS_ARCHIVE_TYPE arch;
+			size_t fs = 0;
+			this->FileInfo(this->fileSystem->GetFilePath(f), arch, fs);
+
+			f->fileSize = fs;
+		}
+
+		this->CloseFile(f);
 	}
 }
 
-void VFS::RefreshFile(const std::string &path)
+void VFS::AddDirectory(const MyStringAnsi &dirName)
 {
-	VFS_FILE *f = this->OpenFile(path);
-	if (f->archiveInfo == NULL)
-	{
-		bool arch;
-		int fs;
-		this->FileInfo(f->filePath, arch, fs);
-	
+    bool failed = true;
 
-		f->fileSize = fs;
-	}
+	if (DIR * dir = opendir(dirName.c_str()))
+    {
+        MyStringAnsi startDirName = dirName;
+#ifdef _MSC_VER
+        startDirName = dir->patt; //full path using Windows dirent
+        startDirName = startDirName.SubString(0, startDirName.length() - 2);
+#endif
+        closedir(dir);
 
+        this->initDirs.push_back(startDirName);
 
+        this->AddDirectory(dirName, startDirName);
+        failed = false;
+    }
+#ifdef __ANDROID_API__
 
-	this->CloseFile(f);
-}
+    if (AAssetDir* dir = AAssetManager_openDir(AndroidUtils::android_asset_manager, dirName.c_str()))
+    {
+        bool dirExist = AAssetDir_getNextFileName(dir) != NULL;
+        AAssetDir_close(dir);
 
-void VFS::AddDirectory(const std::string &dirName)
-{
-	DIR * dir = opendir(dirName.c_str());
-	if (dir == NULL)
-	{
-		printf("[Error] Directory %s not found.\n", dirName.c_str());		
-		return;
-	}
-	std::string startDirName = dirName;
-	#ifdef _MSC_VER
-		startDirName = dir->patt; //full path using Windows dirent
-		startDirName = startDirName.substr(0, startDirName.length() - 2);
-	#endif	
-	closedir(dir);
+        if (dirExist)
+        {
+            MyStringAnsi startDirName = dirName;
 
-	this->AddDirectory(dirName, startDirName);
+            this->initDirs.push_back(startDirName);
 
-	
+            this->AddDirectoryAndroid(dirName, startDirName);
+            failed = false;
+        }
+    }
+#endif
+
+    if (failed)
+    {
+        printf("[VFS Error] Directory %s not found.\n", dirName.c_str());
+    }
 	//printf("\n========\n");
 	//this->fileSystem->PrintStructure();
 }
 
-void VFS::AddDirectory(const std::string &dirName, const std::string &startDirName)
+void VFS::AddHighPriorityRawDirectory(const MyStringAnsi &dirName)
+{
+	this->AddRawDirectory(dirName, 0);
+}
+
+void VFS::AddRawDirectory(const MyStringAnsi &dirName, int priority)
+{
+	if (DIR * dir = opendir(dirName.c_str()))
+    {
+        MyStringAnsi startDirName = dirName;
+#ifdef _MSC_VER
+        startDirName = dir->patt; //full path using Windows dirent
+        startDirName = startDirName.SubString(0, startDirName.length() - 2);
+#endif
+        closedir(dir);
+
+		if (priority == 0)
+		{
+			this->initDirs.insert(this->initDirs.begin(), startDirName);
+		}
+		else if (priority > 0)
+		{
+			this->initDirs.insert(this->initDirs.begin() + priority, startDirName);
+		}
+		else
+		{
+			this->initDirs.push_back(startDirName);
+		}
+
+		return;
+    }
+
+
+#ifdef __ANDROID_API__
+
+
+	if (priority == 0)
+	{
+		this->initDirs.insert(this->initDirs.begin(), dirName);
+	}
+	else if (priority > 0)
+	{
+		this->initDirs.insert(this->initDirs.begin() + priority, dirName);
+	}
+	else
+	{
+		this->initDirs.push_back(dirName);
+	}
+
+	//do not test for android
+	/*
+    if (AAssetDir* dir = AAssetManager_openDir(AndroidUtils::android_asset_manager, dirName.c_str()))
+    {
+        bool dirExist = AAssetDir_getNextFileName(dir) != NULL;
+        AAssetDir_close(dir);
+
+        if (dirExist)
+        {
+            MyStringAnsi startDirName = dirName;
+
+			if (priority == 0)
+			{
+				this->initDirs.insert(this->initDirs.begin(), startDirName);
+			}
+			else
+			{
+				this->initDirs.push_back(startDirName);
+			}
+        }
+    }
+	*/
+#endif
+
+}
+
+
+void VFS::AddDirectory(const MyStringAnsi &dirName, const MyStringAnsi &startDirName)
 {
 	
 	DIR * dir = opendir(dirName.c_str());
-	
-    if (dir == NULL)
-    {
-        printf("Failed to open dir %s\n", dirName.c_str());
-        return;
-    }
-    
-	struct dirent * ent;
-	std::string newDirName;
-	std::string fullPath;
-	std::string vfsPath;
-	
-   
-    
-    /* print all the files and directories within directory */
-    while ((ent = readdir (dir)) != NULL) 
+	if (dir == nullptr)
 	{
-		if ((strcmp(ent->d_name, ".") == 0)||(strcmp(ent->d_name, "..") == 0))
+		printf("[VFS Error] Failed to open dir %s\n", dirName.c_str());
+		return;
+	}
+
+	
+	struct dirent *ent;
+	MyStringAnsi newDirName;
+	MyStringAnsi fullPath;
+	MyStringAnsi vfsPath;
+
+
+
+	/* print all the files and directories within directory */
+	while ((ent = readdir(dir)) != nullptr)
+	{
+		if (ent->d_name[0] == '.')
 		{
 			continue;
 		}
-        switch (ent->d_type) 
+
+		switch (ent->d_type)
 		{
-			case DT_REG:
-			
-				//printf ("%s (file)\n", ent->d_name);
-				fullPath = dirName;
-				#ifdef _MSC_VER
-					fullPath = dir->patt; //full path using Windows dirent
-					fullPath = fullPath.substr(0, fullPath.length() - 1);
-				#else
-                    if (fullPath[fullPath.GetLength() - 1] != '/')
-                    {
-                        fullPath += "/";
-                    }
-                #endif				
-				fullPath += ent->d_name;
-				
-				vfsPath = fullPath;
-				vfsPath = vfsPath.substr(startDirName.length(), fullPath.length() - startDirName.length());
+		case DT_REG:
+
+			//printf ("%s (file)\n", ent->d_name);                    
+#ifdef _MSC_VER
+			fullPath = dir->patt; //full path using Windows dirent
+			fullPath = fullPath.SubString(0, fullPath.length() - 1);
+#else
+			fullPath = dirName;
+			if (fullPath.GetLastChar() != '/')
+			{
+				fullPath += '/';
+			}
+#endif
+			fullPath += ent->d_name;
+
+			fullPath.Replace("\\", "/");
+
+			vfsPath = fullPath;
+			vfsPath = vfsPath.SubString(startDirName.length(),
+				fullPath.length() - startDirName.length());
 
 
-				//printf("Full file path: %s\n", fullPath.GetConstString());
-				//printf("VFS file path: %s\n", vfsPath.GetConstString());
-				
-				this->CreateVFSFile(vfsPath, fullPath);
-				
-				break;
+			//printf("Full file path: %s\n", fullPath.c_str());
+			//printf("VFS file path: %s\n", vfsPath.c_str());
 
-			case DT_DIR:
-				//printf ("%s (dir)\n", ent->d_name);
-				
-				newDirName = dirName;
-                if (newDirName[newDirName.length() - 1] != '/')
-                {
-                    newDirName += "/";
-                }
-				newDirName += ent->d_name;
-				this->AddDirectory(newDirName, startDirName);
-				
-				break;
+			this->CreateVFSFile(vfsPath, fullPath);
 
-			default:
-				//printf ("%s:\n", ent->d_name);
-				break;
-        }
-    }
+			break;
 
-	
-    closedir (dir); 
+		case DT_DIR:
+			//printf ("%s (dir)\n", ent->d_name);
+
+			newDirName = dirName;
+			if (newDirName.GetLastChar() != '/')
+			{
+				newDirName += '/';
+			}
+			newDirName += ent->d_name;
+			this->AddDirectory(newDirName, startDirName);
+
+			break;
+
+		default:
+			//printf ("%s:\n", ent->d_name);
+			break;
+		}
+	}
+
+
+	closedir(dir);
+   
 	
 }
 
-bool VFS::FileInfo(const std::string &fileName, bool &archived, int &fileSize)
+#ifdef __ANDROID_API__
+void VFS::AddDirectoryAndroid(const MyStringAnsi &dirName, const MyStringAnsi &startDirName)
 {
-	FILE * file = NULL;
+    AAssetDir* assetDir = AAssetManager_openDir(AndroidUtils::android_asset_manager, dirName.c_str());
+    const char* filename = (const char*)NULL;
+    while ((filename = AAssetDir_getNextFileName(assetDir)) != NULL)
+    {
+        if (filename[0] == '.')
+        {
+            continue;
+        }
+
+        MyStringAnsi fullPath = dirName;
+        if (fullPath[fullPath.length() - 1] != '/')
+        {
+			fullPath += '/';
+        }
+
+        fullPath += filename;
+
+        MyStringAnsi vfsPath = fullPath;
+        vfsPath = vfsPath.SubString(startDirName.length(), fullPath.length() - startDirName.length());
+
+
+
+        this->CreateVFSFile(vfsPath, fullPath);
+
+    }
+    AAssetDir_close(assetDir);
+}
+#endif
+
+bool VFS::FileInfo(const MyStringAnsi &fileName, VFS_ARCHIVE_TYPE &archiveType, size_t &fileSize) const
+{
+	FILE * file = nullptr;
 	my_fopen(&file, fileName.c_str(), "rb");
-	if (file == NULL)
+	if (file == nullptr)
 	{
-		printf("Failed to open file %s with: %d\n", fileName.c_str(), errno);
+#ifdef __ANDROID_API__
+		file = file = AndroidUtils::AssetFopen(fileName.c_str(), "rb");
+		if (file == nullptr)
+		{
+			return false;
+		}
+#else
 		return false;
+#endif
 	}
 
 	fseek(file, 0, SEEK_END);
-	fileSize = static_cast<int>(ftell(file));
+	fileSize = static_cast<size_t>(ftell(file));
 	fseek(file, 0, SEEK_SET);
 
-	char * buf = (char *)malloc(10 * sizeof(char));
-	fread(buf, sizeof(char), 10, file);
+	archiveType = VFS_ARCHIVE_TYPE::NONE;
 
-
-	fclose(file);
-
-	archived = false;
-	if ((buf[0] == 'P')&&(buf[1] == 'K')) 
+	if (fileSize > 10)
 	{
-		archived  = true;
+		char buf[10];
+		fread(buf, sizeof(char), 10, file);				
+		if ((buf[0] == 'P') && (buf[1] == 'K'))
+		{
+			archiveType = VFS_ARCHIVE_TYPE::ZIP;
+		}
+		else if ((buf[0] == 'V') && (buf[1] == 'D'))
+		{
+			archiveType = VFS_ARCHIVE_TYPE::PACKED_FS;
+		}
 	}
 
-	free(buf);
+	fclose(file);
 
 	return true;
 }
 
-void VFS::ScanArchive(const std::string &fileName)
+void VFS::ScanPackedFS(const MyStringAnsi & vfsPath, const MyStringAnsi &fullPath)
 {
-	unzFile file = unzOpen(fileName.c_str());
+	this->archiveFiles.push_back(fullPath);
+
+	int i = vfsPath.length() - 1;
+	while ((i > 0) && (vfsPath[i] != '/') && (vfsPath[i] != '\\'))
+	{
+		i--;
+	}
+
+	MyStringAnsi archiveVfsDir = vfsPath;
+	archiveVfsDir[i + 1] = 0; //cut-off file name
+
+	FILE * f = nullptr;
+	my_fopen(&f, fullPath.c_str(), "rb");
+	if (f == nullptr)
+	{
+		return;
+	}
+
+	char header[2];
+	fread(header, sizeof(char), 2, f);
+	
+	uint32_t fileCount = 0;
+	fread(&fileCount, sizeof(uint32_t), 1, f);
+
+	for (uint32_t fi = 0; fi < fileCount; fi++)
+	{
+		uint32_t fileSize = 0;
+		uint32_t dataOffset = 0;
+		uint16_t nameLength = 0;
+
+		fread(&fileSize, sizeof(uint32_t), 1, f);
+		fread(&dataOffset, sizeof(uint32_t), 1, f);
+		fread(&nameLength, sizeof(uint16_t), 1, f);
+
+		char * n = new char[nameLength + 1];
+		fread(n, sizeof(char), nameLength, f);
+		n[nameLength] = 0;
+
+		MyStringAnsi path = MyStringAnsi::CreateFromMoveMemory(n, nameLength + 1, nameLength);
+
+		VFS_FILE * vfsFile = new VFS_FILE;
+		vfsFile->fileSize = static_cast<size_t>(fileSize);
+		vfsFile->archiveOffset = dataOffset;
+		vfsFile->archiveFileIndex = static_cast<uint16_t>(this->archiveFiles.size() - 1);
+		vfsFile->filePtr = nullptr;
+		vfsFile->archiveType = VFS_ARCHIVE_TYPE::PACKED_FS;
+		//vfsFile->filePath = my_strdup(path.c_str()); //NEED RELEASE !
+
+		//arch->parent = file;
+
+
+		int i = path.length() - 1;
+		while ((i > 0) && (path[i] != '/') && (path[i] != '\\'))
+		{
+			i--;
+		}
+		vfsFile->name = my_strdup(path.c_str() + i + 1);
+
+		this->fileSystem->AddFile(path, vfsFile);
+	}
+
+	fclose(f);
+}
+
+void VFS::ScanZipArchive(const MyStringAnsi & vfsPath, const MyStringAnsi &fullPath)
+{
+	this->archiveFiles.push_back(fullPath);
+
+	int i = vfsPath.length() - 1;
+	while ((i > 0) && (vfsPath[i] != '/') && (vfsPath[i] != '\\'))
+	{
+		i--;
+	}
+	
+	MyStringAnsi archiveVfsDir = vfsPath;
+	archiveVfsDir[i + 1] = 0; //cut-off file name
+
+
+	unzFile zipFile = unzOpen(fullPath.c_str());
 	
 
-	int res = unzGoToFirstFile(file);
+	int res = unzGoToFirstFile(zipFile);
 
 	unz_file_info info;
-	unz_file_pos pos;
-	char * fileNameInArchive = new char[255 + 1];
-	while(1)
+	char fileNameInArchive[255 + 1];
+	while(true)
 	{
-
-		unzGetCurrentFileInfo(file, &info, fileNameInArchive, 255, NULL, 0, NULL, 0);
-		unzGetFilePos(file, &pos);
-
+		unzGetCurrentFileInfo(zipFile, &info, fileNameInArchive, 255, nullptr, 0, nullptr, 0);
+		//unzGetFilePos(file, &pos);
+		
 		if (fileNameInArchive[info.size_filename - 1] != '/')
 		{
-			std::string path = fileNameInArchive;
+			MyStringAnsi path = archiveVfsDir;
 
-			//printf("%s\n", fileNameInArchive);
+			path += fileNameInArchive;
+			
+			
+			VFS_FILE * vfsFile = new VFS_FILE;
+			vfsFile->fileSize = static_cast<size_t>(info.uncompressed_size);
+			vfsFile->archiveOffset = unzGetOffset(zipFile);
+			vfsFile->archiveFileIndex = static_cast<uint16_t>(this->archiveFiles.size() - 1);
+			vfsFile->filePtr = nullptr;
+			vfsFile->archiveType = VFS_ARCHIVE_TYPE::ZIP;
+			//vfsFile->filePath = my_strdup(path.c_str()); //NEED RELEASE !
+			
+			//arch->parent = file;
 
-			Archived * arch = new Archived;
-			arch->compressedSize = static_cast<int>(info.compressed_size);
-			arch->method = 0;
-			arch->ptr = NULL;
-			arch->offset = pos.pos_in_zip_directory;			
-			arch->filePath = my_strdup(fileName.c_str());
+			
+			int i = path.length() - 1;
+			while ((i > 0) && (path[i] != '/') && (path[i] != '\\'))
+			{
+				i--;
+			}
+			vfsFile->name = my_strdup(path.c_str() + i + 1);
 
-			VFS_FILE * file = new VFS_FILE;
-			file->fileSize = static_cast<int>(info.uncompressed_size);
-			file->archiveInfo = arch;
-			file->filePtr = NULL;			
-			file->filePath = my_strdup(path.c_str());
-
-			arch->parent = file;
-
-			replaceAll(path, "\\", "/");
-			std::vector<std::string> splited = split(path, '/');
-			std::string name = splited[splited.size() - 1];			
-			file->fullName = my_strdup(name.c_str());
-
-			splited = split(name, '.');
-			std::string ext = "";
-            if (splited.size() > 1)
-            {
-                ext = splited[splited.size() - 1];
-            }			
-			file->ext = my_strdup(ext.c_str());
-
-			name = name.substr(0, name.length() - ext.length() - 1);			
-			file->name = my_strdup(name.c_str());
-
-			this->fileSystem->AddFile(path, file);
+			this->fileSystem->AddFile(path, vfsFile);
 		}
 			
-		res = unzGoToNextFile(file);
+		res = unzGoToNextFile(zipFile);
 		if (res == UNZ_END_OF_LIST_OF_FILE) break;
 	}
 
-	//keep zip file opened
-	unzClose(file);
-	delete[] fileNameInArchive;
+	unzClose(zipFile);
 }
 
-void VFS::CreateVFSFile(std::string vfsPath, std::string fullPath)
+void VFS::CreateVFSFile(MyStringAnsi & vfsPath, const MyStringAnsi & fullPath)
 {
-	bool archived;
-	int fileSize;
-	if (this->FileInfo(fullPath, archived, fileSize) == false)
+	VFS_ARCHIVE_TYPE archiveType;
+	size_t fileSize;
+	if (this->FileInfo(fullPath, archiveType, fileSize) == false)
     {
         return;
     }
 
-	if (archived)
+	if (archiveType == VFS_ARCHIVE_TYPE::ZIP)
 	{
-		this->ScanArchive(fullPath);
+		this->ScanZipArchive(vfsPath, fullPath);
+		return;
+	}
+
+	if (archiveType == VFS_ARCHIVE_TYPE::PACKED_FS)
+	{
+		this->ScanPackedFS(vfsPath, fullPath);
 		return;
 	}
 	
-	VFS_FILE * file = new VFS_FILE;
-	file->fileSize = fileSize;
-	file->archiveInfo = NULL;
-	file->filePtr = NULL;	
-	file->filePath = my_strdup(fullPath.c_str());
+	VFS_FILE * vfsFile = new VFS_FILE;
+	vfsFile->fileSize = fileSize;
+	vfsFile->archiveFileIndex = std::numeric_limits<uint16_t>::max();
+	vfsFile->archiveOffset = std::numeric_limits<unsigned long>::max();
+	vfsFile->filePtr = nullptr;	
+	vfsFile->archiveType = VFS_ARCHIVE_TYPE::NONE;
+	//vfsFile->filePath = my_strdup(vfsPath.c_str()); //NEED RELEASE !
 
-
-	replaceAll(vfsPath, "\\", "/");
-	std::vector<std::string> splited = split(vfsPath, '/');
-	std::string name = splited[splited.size() - 1];	
-	file->fullName = my_strdup(name.c_str());
-
-	splited = split(name, '.');
-	std::string ext = "";
-    if (splited.size() > 1)
-    {
-        ext = splited[splited.size() - 1];
-    }	
-	file->ext = my_strdup(ext.c_str());
-	name = name.substr(0, name.length() - ext.length() - 1);	
-	file->name = my_strdup(name.c_str());
-
-	this->fileSystem->AddFile(vfsPath, file);
-	
-}
-
-/*-----------------------------------------------------------
-Function:	CreateDebugFile
-Parameters:	
-	[in] path - absolute path to file in real File System
-Returns:
-	newly created VFS_FILE pointer 
-
-Create VFS_FILE pointer and fill structure for file, that is
-opened from real FileSystem (eg.: C:\\Windows\\example.txt)
-Supported only in VFS DEBUG_MODE
--------------------------------------------------------------*/
-VFS_FILE * VFS::CreateDebugFile(std::string path)
-{
-	bool archived;
-	int fileSize;
-	bool res = this->FileInfo(path, archived, fileSize);
-	if (!res)
+	int i = vfsPath.length() - 1;
+	while ((i > 0) && (vfsPath[i] != '/') && (vfsPath[i] != '\\'))
 	{
-		printf("[Error] File %s not found.\n", path.c_str());
-		return NULL;
-	}
-
-	VFS_FILE * file = new VFS_FILE;
-	file->fileSize = fileSize;
-	file->archiveInfo = NULL;
-	file->filePtr = NULL;	
-	file->filePath = my_strdup(path.c_str());
+		i--;
+	} 
+	vfsFile->name = my_strdup(vfsPath.c_str() + i + 1);
 	
-
-	std::string tmp = path;
-	replaceAll(tmp, "\\", "/");
-	std::vector<std::string> splited = split(tmp, '/');
-	std::string name = splited[splited.size() - 1];
-	file->fullName = my_strdup(name.c_str());
-
-	splited = split(name, '.');
-	std::string ext = "";
-    if (splited.size() > 1)
-    {
-        ext = splited[splited.size() - 1];
-    }	
-	file->ext = my_strdup(ext.c_str());
-
-	name = name.substr(0, name.length() - ext.length() - 1);	
-	file->name = my_strdup(name.c_str());
-
-	this->debugModeFiles.push_back(file);
-
-	return file;
-}
-
-
-void VFS::ExportStructure(const std::string & fileName)
-{
-	std::string all = "";
-
-	auto fs = this->GetAllFiles();
-	for (auto & f : fs)
-	{
-		std::string fi = "";
-
-		fi += f->ext;
-		fi += ";";
-		fi += f->filePath;
-		fi += ";";
-		fi += std::to_string(f->fileSize);
-		fi += ";";
-		fi += f->fullName;
-		fi += ";";
-		fi += f->name;
-		fi += ";";
-
-		if (f->archiveInfo != nullptr)
-		{
-			fi += std::to_string(f->archiveInfo->compressedSize);
-			fi += ";";
-			fi += f->archiveInfo->filePath;
-			fi += ";";
-			fi += std::to_string(f->archiveInfo->method);
-			fi += ";";
-			fi += std::to_string(f->archiveInfo->offset);
-			fi += ";";
-		}
-
-		all += fi;
-		all += "\n";
-	}
-
+	this->fileSystem->AddFile(vfsPath, vfsFile);
 	
-	std::cin >> all;
-	std::ofstream out(fileName);
-	out << all;
-	out.close();
 }
 
-/*
-void VFS::ImportStructure()
-{
-	//this->fileSystem->AddFile(vfsPath, file);
-}
-*/

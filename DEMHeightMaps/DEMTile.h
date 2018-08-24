@@ -11,6 +11,8 @@
 
 #include "./Cache/DataCache.h"
 
+#include "./Strings/MyString.h"
+
 //=============================================================================================
 //=============================================================================================
 //=============================================================================================
@@ -40,7 +42,7 @@ typedef struct TileInfo
 	* |		|
 	* 0 --- 1
 	*/
-	IProjectionInfo::Coordinate GetCorner(int i) const
+	Projections::Coordinate GetCorner(int i) const
 	{
 		if (i == 0) return { minLat, minLon };
 		if (i == 1) return { minLat,  GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
@@ -48,7 +50,7 @@ typedef struct TileInfo
 		return { GeoCoordinate::rad(minLat.rad() + stepLat.rad()), GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
 	};
 
-	bool IsPointInside(const IProjectionInfo::Coordinate & p) const
+	bool IsPointInside(const Projections::Coordinate & p) const
 	{
 		if (p.lon.rad() < minLon.rad()) return false;
 		if (p.lat.rad() < minLat.rad()) return false;
@@ -87,13 +89,15 @@ typedef struct DEMTileInfo : TileInfo
 {
 	int bytesPerValue;
 
-	std::string fileName;
+	MyStringAnsi fileName;
+	MyStringAnsi filePath;
+	bool isArchived;
 
 } DEMTileInfo;
 
 typedef struct TileRawData 
 {
-	int dataSize;
+	size_t dataSize;
 	short * data;
 
 	~TileRawData()
@@ -109,7 +113,7 @@ class DEMTileData
 {
 	public:
 					
-		DEMTileData(MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache);
+		DEMTileData(MemoryCache<MyStringAnsi, TileRawData, LRUControl<MyStringAnsi>> * cache);
 		DEMTileData(DEMTileData const&) = default;
 
 		DEMTileData& operator=(DEMTileData const&) = delete;		
@@ -121,13 +125,13 @@ class DEMTileData
 		void LoadTileData();
 
 		void SetTileInfo(DEMTileInfo * info);
-		short GetValue(const IProjectionInfo::Coordinate & c);
+		short GetValue(const Projections::Coordinate & c);
 
 		
 	private:
 		
 		
-		MemoryCache<std::string, TileRawData, LRUControl<std::string>> * cache;
+		MemoryCache<MyStringAnsi, TileRawData, LRUControl<MyStringAnsi>> * cache;
 		DEMTileInfo * info;
 
 		TileRawData data;
