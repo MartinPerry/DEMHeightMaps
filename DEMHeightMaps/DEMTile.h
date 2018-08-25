@@ -44,10 +44,10 @@ typedef struct TileInfo
 	*/
 	Projections::Coordinate GetCorner(int i) const
 	{
-		if (i == 0) return { minLat, minLon };
-		if (i == 1) return { minLat,  GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
-		if (i == 2) return { GeoCoordinate::rad(minLat.rad() + stepLat.rad()), minLon };
-		return { GeoCoordinate::rad(minLat.rad() + stepLat.rad()), GeoCoordinate::rad(minLon.rad() + stepLon.rad()) };
+		if (i == 0) return { minLon, minLat };
+		if (i == 1) return { GeoCoordinate::rad(minLon.rad() + stepLon.rad()), minLat };
+		if (i == 2) return { minLon, GeoCoordinate::rad(minLat.rad() + stepLat.rad()) };
+		return { GeoCoordinate::rad(minLon.rad() + stepLon.rad()), GeoCoordinate::rad(minLat.rad() + stepLat.rad()) };
 	};
 
 	bool IsPointInside(const Projections::Coordinate & p) const

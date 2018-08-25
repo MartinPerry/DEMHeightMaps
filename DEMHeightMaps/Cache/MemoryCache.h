@@ -56,6 +56,7 @@ private:
 	size_t currentSize;
 	CacheControl type;
 	std::unordered_map<Key, ValueInfo> values;
+	size_t insertedWithoutValidTime;
 
 	std::mutex memCacheLock;
 
@@ -73,7 +74,7 @@ private:
 /// <param name="type">cache control type</param>
 template <typename Key, typename Value, typename CacheControl>
 MemoryCache<Key, Value, CacheControl>::MemoryCache(size_t size, const CacheControl & type)
-	: maxSize(size), currentSize(0), type(type)
+	: maxSize(size), currentSize(0), type(type), insertedWithoutValidTime(0)
 {
 }
 
@@ -150,11 +151,13 @@ MemoryCache<Key, Value, CacheControl>::InsertWithValidTime(const Key & key, cons
 				//available space exhausted... delete from cache
 				if (this->type.Erase())
 				{
-					info.itemRemoved = true;
-					info.removedValue.push_back(this->values[deletedKey].value);
-					this->currentSize -= this->values[deletedKey].size;
+					auto it = this->values.find(deletedKey);
 
-					this->values.erase(deletedKey);
+					info.itemRemoved = true;
+					info.removedValue.push_back(it->second.value);
+					this->currentSize -= it->second.size;
+
+					this->values.erase(it);
 				}				
 			}
 		}
@@ -164,6 +167,7 @@ MemoryCache<Key, Value, CacheControl>::InsertWithValidTime(const Key & key, cons
 		vi.value = value;
 		if (lifeTimeSeconds == 0)
 		{
+			insertedWithoutValidTime++;
 			vi.validSince = 0;
 		}
 		else 
@@ -199,6 +203,11 @@ bool MemoryCache<Key, Value, CacheControl>::Remove(const Key & key)
         return false;
     }
     
+	if (deletedKey->second.validSince == 0)
+	{
+		insertedWithoutValidTime--;
+	}
+
     this->currentSize -= deletedKey->second.size;
     
     this->values.erase(deletedKey);
@@ -213,6 +222,12 @@ bool MemoryCache<Key, Value, CacheControl>::Remove(const Key & key)
 template <typename Key, typename Value, typename CacheControl>
 bool MemoryCache<Key, Value, CacheControl>::RemoveInvalidTime(typename MemoryCache<Key, Value, CacheControl>::InsertInfo & info)
 {	
+	if (insertedWithoutValidTime = this->values.size())
+	{
+		//all items were inserted without time
+		return false;
+	}
+
 	time_t now;	
 	time(&now);  /* get current time; same as: now = time(NULL)  */
 
@@ -238,12 +253,18 @@ bool MemoryCache<Key, Value, CacheControl>::RemoveInvalidTime(typename MemoryCac
 	{
 		if (this->type.Erase(deletedKey))
 		{
+			auto it = this->values.find(deletedKey);
+
+			if (it->second.validSince == 0)
+			{
+				insertedWithoutValidTime--;
+			}
 
 			info.itemRemoved = true;
-			info.removedValue.push_back(this->values[deletedKey].value);
-			this->currentSize -= this->values[deletedKey].size;
+			info.removedValue.push_back(it->second.value);
+			this->currentSize -= it->second.size;
 
-			this->values.erase(deletedKey);
+			this->values.erase(it);
 		}
 	}
 

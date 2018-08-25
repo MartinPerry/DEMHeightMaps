@@ -13,6 +13,8 @@
 #include <MapProjection.h>
 #include <GeoCoordinate.h>
 
+#include "./VFS/OSUtils.h"
+
 #include "./Strings/MyString.h"
 
 #include "./DB/Database/PostgreSQLWrapper.h"
@@ -94,7 +96,7 @@ void CreateBackgroundMaps()
 	//DEMData dd({ "E://DEM_Voidfill_debug//" });
 	//DEMData dd({ "E://debug_uk//" });
 	//DEMData dd("E://DEM23//");
-	//DEMData<uint8_t, Projections::Mercator> dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" });
+	//DEMData<uint8_t, Projections::Mercator> dd({ "E://DEM_Voidfill_opened//", "E://DEM_srtm_opened//" });
 	DEMData<uint8_t, Projections::Mercator> dd({ "E://DEM_Voidfill//", "E://DEM_srtm//" });
 	//DEMData dd({ "F://DEM_Voidfill_opened//", "F://DEM_srtm_opened//" });
 	//DEMData dd({ "E://DEM_srtm//" });
@@ -106,47 +108,94 @@ void CreateBackgroundMaps()
 	dd.SetMinMaxElevation(0, 5000);
 	dd.SetElevationMappingEnabled(true);
 
-	int zoomLevel = 1;
+	//int zoomLevel = 2;
 
-	double stepLat = (MERCATOR_MAX - MERCATOR_MIN) / (std::pow(2.0, zoomLevel));
-	double stepLon = (180.0 - -180.0) / (std::pow(2.0, zoomLevel));
-
-	auto tiles = dd.BuildTileMap(512, 512,
-	{ GeoCoordinate::deg(MERCATOR_MIN), GeoCoordinate::deg(-180.0) },
-	{ GeoCoordinate::deg(MERCATOR_MAX), GeoCoordinate::deg(180.0) },
-	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) });
-	
 	//BorderRenderer<Projections::Mercator> br("I://hranice//", dd.GetProjection());
 
-	for (auto & tDir : tiles)
+	for (int zoomLevel = 3; zoomLevel <= 9; zoomLevel++)
 	{
-		for (auto & tFiles : tDir.second)
+
+		int tilesCountX = std::pow(2, zoomLevel);
+		int tilesCountY = std::pow(2, zoomLevel);
+
+		int totalW = 512 * tilesCountX;
+		int totalH = 512 * tilesCountY;
+
+		//double stepLat = (MERCATOR_MAX - MERCATOR_MIN) / (std::pow(2.0, zoomLevel));
+		//double stepLon = (180.0 - -180.0) / (std::pow(2.0, zoomLevel));
+
+		auto tiles = dd.BuildTileMap(totalW, totalH,
+			tilesCountX, tilesCountY,
+			{ GeoCoordinate::deg(-180.0), GeoCoordinate::deg(MERCATOR_MIN) },
+			{ GeoCoordinate::deg(180.0), GeoCoordinate::deg(MERCATOR_MAX) });
+		
+		MyStringAnsi zoomPath = "F:/DEM/";
+		zoomPath += zoomLevel;
+		zoomPath += '/';
+
+		OSUtils::Instance()->CreateDir(zoomPath);
+
+		for (auto & tDir : tiles)
 		{
-			auto & t = tFiles.second;
-			uint8_t * data = dd.BuildMap(t.width, t.height, t.GetCorner(0), t.GetCorner(3), false);
+			//int x = tiles.size() - tDir.first - 1;
+			int x = tDir.first;
 
-			//br.SetData(t.width, t.height, data);
-			//br.DrawBorders(t.GetCorner(0), t.GetCorner(3), false);
+			MyStringAnsi outPath = zoomPath;
+			outPath += x;
+			outPath += '/';
 
-			MyStringAnsi ss = "D://T//DEM//";
-			/*
-			ss += "tile_";
-			ss += int(t.minLat.deg() * 10) / 10.0;
-			ss += "_";
-			ss += int(t.minLon.deg() * 10) / 10.0;
-			ss += "_";
-			ss += int(t.GetCorner(3).lat.deg() * 10) / 10.0;
-			ss += "_";
-			ss += int(t.GetCorner(3).lon.deg() * 10) / 10.0;
-			*/
-			ss += "tile_";
-			ss += tDir.first;
-			ss += "_";
-			ss += tFiles.first;
-			ss += ".png";
-			uint32_t error = lodepng::encode(ss.c_str(), data, t.width, t.height, LodePNGColorType::LCT_GREY, 8);
+			OSUtils::Instance()->CreateDir(outPath);
 
-			SAFE_DELETE_ARRAY(data);
+
+			for (auto & tFiles : tDir.second)
+			{
+				auto & t = tFiles.second;
+				uint8_t * data = dd.BuildMap(t.width, t.height, t.GetCorner(0), t.GetCorner(3), false);
+
+				if (data == nullptr)
+				{
+					//empty - all is water probably
+					continue;
+				}
+
+				//br.SetData(t.width, t.height, data);
+				//br.DrawBorders(t.GetCorner(0), t.GetCorner(3), false);
+
+				//y is swapped
+				int y = tFiles.first;//
+				//int y = tDir.second.size() - tFiles.first - 1;
+
+				MyStringAnsi filePath = outPath;
+				filePath += y;
+				filePath += ".png";
+
+				uint32_t error = lodepng::encode(filePath.c_str(), data, t.width, t.height, LodePNGColorType::LCT_GREY, 8);
+
+				/*
+				MyStringAnsi ss = "D://T//DEM//";
+
+				ss += "tile_";
+				ss += int(t.minLat.deg() * 10) / 10.0;
+				ss += "_";
+				ss += int(t.minLon.deg() * 10) / 10.0;
+				ss += "_";
+				ss += int(t.GetCorner(3).lat.deg() * 10) / 10.0;
+				ss += "_";
+				ss += int(t.GetCorner(3).lon.deg() * 10) / 10.0;
+				*/
+
+				/*
+				MyStringAnsi ss = "D://T//DEM//";
+				ss += "tile_";
+				ss += tDir.first;
+				ss += "_";
+				ss += tFiles.first;
+				ss += ".png";
+				uint32_t error = lodepng::encode(ss.c_str(), data, t.width, t.height, LodePNGColorType::LCT_GREY, 8);
+				*/
+
+				SAFE_DELETE_ARRAY(data);
+			}
 		}
 	}
 }
@@ -189,6 +238,12 @@ std::string BuildDataAsStr(uint16_t * data, int w, int h)
 
 int main(int argc, char * argv[])
 {
+	OSUtils::OSInfo info;
+	info.documentPath = "";
+	info.installPath = "";
+
+	OSUtils::Init(info);
+	
 	CreateBackgroundMaps();
 
 	return 0;
@@ -279,9 +334,9 @@ int main(int argc, char * argv[])
 
 	
 	dd.ProcessTileMap(64, 64,
-	{ GeoCoordinate::deg(-90.0),  GeoCoordinate::deg(-180.0) },
-	{ GeoCoordinate::deg(90.0), GeoCoordinate::deg(180.0) },
-	{ GeoCoordinate::deg(stepLat), GeoCoordinate::deg(stepLon) },
+	{ GeoCoordinate::deg(-180.0), GeoCoordinate::deg(-90.0) },
+	{ GeoCoordinate::deg(180.0), GeoCoordinate::deg(90.0) },
+	{ GeoCoordinate::deg(stepLon), GeoCoordinate::deg(stepLat)},
 		[&](TileInfo & t, size_t x, size_t y) {
 
 		double latDeg = t.GetCorner(0).lat.deg();

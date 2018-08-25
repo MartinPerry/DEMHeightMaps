@@ -39,15 +39,20 @@ class DEMData
 
 		void ExportTileList(const MyStringAnsi & fileName);
 		
-		std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> BuildTileMap(int tileW, int tileH,
-			const Projections::Coordinate & min, const Projections::Coordinate & max,
-			const Projections::Coordinate & tileStep);
+		std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> BuildTileMap(
+			int totalW, int totalH, int tilesCountX, int tilesCountY,
+			const Projections::Coordinate & min, const Projections::Coordinate & max);
 
+
+		void ProcessTileMap(int totalW, int totalH,
+			int tilesCountX, int tilesCountY,
+			const Projections::Coordinate & min, const Projections::Coordinate & max,
+			std::function<void(TileInfo & ti, size_t, size_t y)> tileCallback);
 
 		void ProcessTileMap(int tileW, int tileH,
 			const Projections::Coordinate & min, const Projections::Coordinate & max,
 			const Projections::Coordinate & tileStep,
-			std::function<void(TileInfo & ti, size_t, size_t y)> tileCallback);
+			std::function<void(TileInfo & ti, size_t x, size_t y)> tileCallback);
 
 		HeightType * BuildMap(int w, int h, const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR);
 		

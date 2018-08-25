@@ -116,7 +116,7 @@ void DEMData<HeightType, ProjType>::LoadTiles()
 	for (const auto & file : tileFiles)
 	{
 		TileInfo::SOURCE src = TileInfo::HGT;		
-		const MyStringAnsi & fileName = file->name;
+		MyStringAnsi fileName = file->name;
 
 		if (fileName.length() < 7)
 		{
@@ -328,10 +328,26 @@ void DEMData<HeightType, ProjType>::ExportTileList(const MyStringAnsi & fileName
 // Data obtaining
 //=======================================================================================
 
+/// <summary>
+/// Divide area of size (totalW, totalH) to totalW x totalH tiles
+/// (each tile will have the same resolution).
+/// GPS corners of tiles are not regular, they are computed.
+/// Each tile can have different GPS step
+/// 
+/// There is no callback, generated tiles are returned
+/// </summary>
+/// <param name="totalW"></param>
+/// <param name="totalH"></param>
+/// <param name="tilesCountX"></param>
+/// <param name="tilesCountY"></param>
+/// <param name="min"></param>
+/// <param name="max"></param>
+/// <returns>generated tiles ordered as [x][y]</returns>
 template <typename HeightType, typename ProjType>
-std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData<HeightType, ProjType>::BuildTileMap(int tileW, int tileH,
-	const Projections::Coordinate & min, const Projections::Coordinate & max,
-	const Projections::Coordinate & tileStep)
+std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData<HeightType, ProjType>::BuildTileMap(
+	int totalW, int totalH, 
+	int tilesCountX, int tilesCountY,
+	const Projections::Coordinate & min, const Projections::Coordinate & max)
 {
 	//calculate "full" resolution
 	//uint32_t lonLength = static_cast<uint32_t>(std::ceil((max.lon.rad() - min.lon.rad()) / pixelStep.lon.rad()));
@@ -339,19 +355,87 @@ std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> DEMData<HeightT
 
 	std::unordered_map<size_t, std::unordered_map<size_t, TileInfo>> res;
 
-	this->ProcessTileMap(tileW, tileH, min, max, tileStep, [&](TileInfo & ti, size_t x, size_t y) {
-		res[x][y] = ti;
-	});
+	this->ProcessTileMap(totalW, totalH, 
+		tilesCountX, tilesCountY,
+		min, max, 
+		[&](TileInfo & ti, size_t x, size_t y) {
+			res[x][y] = ti;
+		}
+	);
 	
 	return res;
 }
 
+/// <summary>
+/// Divide area of size (totalW, totalH) to totalW x totalH tiles
+/// (each tile will have the same resolution).
+/// GPS corners of tiles are not regular, they are computed.
+/// Each tile can have different GPS step
+/// </summary>
+/// <param name="totalW"></param>
+/// <param name="totalH"></param>
+/// <param name="tilesCountX"></param>
+/// <param name="tilesCountY"></param>
+/// <param name="min"></param>
+/// <param name="max"></param>
+/// <param name="tileCallback"></param>
 template <typename HeightType, typename ProjType>
-void DEMData<HeightType, ProjType>::ProcessTileMap(int tileW, int tileH,
+void DEMData<HeightType, ProjType>::ProcessTileMap(
+	int totalW, int totalH,
+	int tilesCountX, int tilesCountY,
+	const Projections::Coordinate & min,
+	const Projections::Coordinate & max,
+	std::function<void(TileInfo & ti, size_t x, size_t y)> tileCallback)
+{
+	this->projection->SetFrame(min, max, totalW, totalH, false);
+
+	int tileW = totalW / tilesCountX;
+	int tileH = totalH / tilesCountY;
+	
+	for (int y = 0, ty = 0; y < totalH; y += tileH, ty++)
+	{
+		for (int x = 0, tx = 0; x < totalW; x += tileW, tx++)
+		{
+			Projections::Coordinate tileMin = this->projection->ProjectInverse({ x, y + tileH });
+			Projections::Coordinate tileMax = this->projection->ProjectInverse({ x + tileW, y });
+
+			TileInfo ti;
+
+			ti.width = tileW;
+			ti.height = tileH;
+			ti.minLon = tileMin.lon;
+			ti.minLat = tileMin.lat;
+			ti.stepLon = GeoCoordinate::rad(tileMax.lon.rad() - tileMin.lon.rad());
+			ti.stepLat = GeoCoordinate::rad(tileMax.lat.rad() - tileMin.lat.rad());
+			ti.pixelStepLat = GeoCoordinate::rad(ti.stepLat.rad() / tileH);
+			ti.pixelStepLon = GeoCoordinate::rad(ti.stepLon.rad() / tileW);
+
+			tileCallback(ti, tx, ty);
+		}
+	}
+}
+
+
+/// <summary>
+/// Create tiles with size (tileW, tileH). Each tile has 
+/// the same GPS step given by tileStep
+/// 
+/// This is used for DB generation ?
+/// </summary>
+/// <param name="tileW"></param>
+/// <param name="tileH"></param>
+/// <param name="min"></param>
+/// <param name="max"></param>
+/// <param name="tileStep"></param>
+/// <param name="tileCallback"></param>
+template <typename HeightType, typename ProjType>
+void DEMData<HeightType, ProjType>::ProcessTileMap(
+	int tileW, int tileH,
 	const Projections::Coordinate & min, const Projections::Coordinate & max,
 	const Projections::Coordinate & tileStep,
 	std::function<void(TileInfo & ti, size_t x, size_t y)> tileCallback)
 {
+	
 	size_t y = 0; //file
 	double tileStepLat = tileStep.lat.rad();
 
@@ -416,10 +500,22 @@ void DEMData<HeightType, ProjType>::ProcessTileMap(int tileW, int tileH,
 
 		y++;
 	}
+	
 }
 
+/// <summary>
+/// Create single tile with size (w, h)
+/// and fill it with height from GPS with corners (min, max)
+/// </summary>
+/// <param name="w"></param>
+/// <param name="h"></param>
+/// <param name="min"></param>
+/// <param name="max"></param>
+/// <param name="keepAR"></param>
+/// <returns></returns>
 template <typename HeightType, typename ProjType>
-HeightType * DEMData<HeightType, ProjType>::BuildMap(int w, int h, const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR)
+HeightType * DEMData<HeightType, ProjType>::BuildMap(int w, int h, 
+	const Projections::Coordinate & min, const Projections::Coordinate & max, bool keepAR)
 {
 	if (this->verbose)
 	{
