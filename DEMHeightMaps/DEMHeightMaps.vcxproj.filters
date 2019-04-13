@@ -31,12 +31,6 @@
     <Filter Include="Source Files\VFS">
       <UniqueIdentifier>{650be00a-aaa6-4dc6-bd4e-0d8993449f52}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\MapProjections">
-      <UniqueIdentifier>{a5f8d7eb-297a-4228-bd13-29c3ff422d85}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\MapProjections">
-      <UniqueIdentifier>{78289977-74f9-4fab-a7bf-67f28f31a182}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files\DB">
       <UniqueIdentifier>{894c57da-775d-4bc7-8cca-eeaba43c9f01}</UniqueIdentifier>
     </Filter>
@@ -105,18 +99,6 @@
     <ClCompile Include="VFS\ZipWrapper.cpp">
       <Filter>Source Files\VFS</Filter>
     </ClCompile>
-    <ClCompile Include="..\MapProjections\MapProjections\lodepng.cpp">
-      <Filter>Source Files\MapProjections</Filter>
-    </ClCompile>
-    <ClCompile Include="..\MapProjections\MapProjections\MapProjection.cpp">
-      <Filter>Source Files\MapProjections</Filter>
-    </ClCompile>
-    <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp">
-      <Filter>Source Files\MapProjections</Filter>
-    </ClCompile>
-    <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp">
-      <Filter>Source Files\MapProjections</Filter>
-    </ClCompile>
     <ClCompile Include="DB\Database\DatabaseSamples.cpp">
       <Filter>Source Files\DB\Database</Filter>
     </ClCompile>
@@ -161,9 +143,6 @@
     </ClCompile>
     <ClCompile Include="VFS\minizip\zip.c">
       <Filter>Source Files\VFS\minizip</Filter>
-    </ClCompile>
-    <ClCompile Include="..\MapProjections\MapProjections\MapProjectionStructures.cpp">
-      <Filter>Source Files\MapProjections</Filter>
     </ClCompile>
     <ClCompile Include="DEMData.cpp">
       <Filter>Source Files</Filter>
@@ -211,21 +190,6 @@
     </ClInclude>
     <ClInclude Include="VFS\ZipWrapper.h">
       <Filter>Header Files\VFS</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\lodepng.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjection.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\Projections.h">
-      <Filter>Header Files\MapProjections</Filter>
     </ClInclude>
     <ClInclude Include="DB\Database\IDatabaseWrapper.h">
       <Filter>Header Files\DB\Database</Filter>
@@ -289,15 +253,6 @@
     </ClInclude>
     <ClInclude Include="VFS\minizip\zip.h">
       <Filter>Header Files\VFS\minizip</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\IProjectionInfo.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionStructures.h">
-      <Filter>Header Files\MapProjections</Filter>
-    </ClInclude>
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionUtils.h">
-      <Filter>Header Files\MapProjections</Filter>
     </ClInclude>
     <ClInclude Include="DB\Macros.h">
       <Filter>Header Files\DB</Filter>

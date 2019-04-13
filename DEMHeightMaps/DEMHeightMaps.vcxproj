@@ -104,9 +104,9 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <LargeAddressAware>true</LargeAddressAware>
-      <AdditionalDependencies>zlibstat.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>zlibstat.lib;MapProjections.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -116,13 +116,13 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;USE_VIRTUAL_INTERFACE;NOMINMAX;ZLIB_WINAPI;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)\MapProjections\MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)/Libs/include/;$(SolutionDir)MapProjections/MapProjections;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <LargeAddressAware>true</LargeAddressAware>
-      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>zlibstat_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>zlibstat_x64.lib;MapProjections.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -165,15 +165,10 @@
       <OptimizeReferences>true</OptimizeReferences>
       <LargeAddressAware>true</LargeAddressAware>
       <AdditionalDependencies>zlibstat_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(ProjectDir)\Libs\lib;$(OutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\MapProjections\MapProjections\lodepng.cpp" />
-    <ClCompile Include="..\MapProjections\MapProjections\MapProjection.cpp" />
-    <ClCompile Include="..\MapProjections\MapProjections\MapProjectionStructures.cpp" />
-    <ClCompile Include="..\MapProjections\MapProjections\ProjectionRenderer.cpp" />
-    <ClCompile Include="..\MapProjections\MapProjections\Projections.cpp" />
     <ClCompile Include="BorderRenderer.cpp" />
     <ClCompile Include="DB\Database\DatabaseSamples.cpp" />
     <ClCompile Include="DB\Database\IDatabaseWrapper.cpp" />
@@ -208,14 +203,6 @@
     <ClCompile Include="VFS\ZipWrapper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\MapProjections\MapProjections\GeoCoordinate.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\IProjectionInfo.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\lodepng.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjection.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionStructures.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\MapProjectionUtils.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\ProjectionRenderer.h" />
-    <ClInclude Include="..\MapProjections\MapProjections\Projections.h" />
     <ClInclude Include="BorderRenderer.h" />
     <ClInclude Include="Cache\CacheControl.h" />
     <ClInclude Include="Cache\DataCache.h" />
